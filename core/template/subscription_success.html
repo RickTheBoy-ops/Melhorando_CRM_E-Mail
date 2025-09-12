@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Subscription Successful - Mailing list</title>
+    <meta name="description" content="" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#20a53a',
+                        secondary: '#36BFFA',
+                        neutral: '#F5F7FA',
+                        dark: '#1D2129',
+                        success: '#00B42A',
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .btn-hover {
+                @apply hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300;
+            }
+            .animate-float {
+                animation: float 3s ease-in-out infinite;
+            }
+            @keyframes float {
+                0% { transform: translateY(0px); }
+                50% { transform: translateY(-10px); }
+                100% { transform: translateY(0px); }
+            }
+        }
+    </style>
+
+    <link rel="icon" href="/favicon.ico?v=bbe064771e" type="image/png" />
+</head>
+<body class="font-inter bg-neutral text-dark min-h-screen flex flex-col">
+<div class="container mx-auto px-4 py-8 flex-grow">
+    <header class="header mb-12">
+        <div class="logo flex justify-center">
+            <a href="/subscription/form" class="inline-block">
+                <img src="/static/logo.png?v=bbe064771e" alt="Subscribe" class="h-16 md:h-20" />
+            </a>
+        </div>
+    </header>
+
+    <section class="max-w-md mx-auto bg-white rounded-xl shadow-lg p-6 md:p-8 transform transition-all hover:shadow-xl">
+        <div class="text-center mb-6">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-success/10 text-success mb-4 animate-float">
+                <i class="fa-regular fa-circle-check text-3xl"></i>
+            </div>
+            <h2 class="text-2xl md:text-3xl font-bold mb-2 text-dark">Subscription Successful!</h2>
+            <p class="text-gray-600 mb-6">Thank you for subscribing to our newsletter.</p>
+        </div>
+
+        <div class="bg-success/5 border border-success/20 rounded-lg p-4 mb-6">
+            <div class="flex items-start">
+                <div class="flex-shrink-0 mt-0.5">
+                    <i class="fa-regular fa-envelope text-success"></i>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-success">Check your inbox</h3>
+                    <div class="mt-1 text-sm text-gray-600">
+                        <p>We've sent a confirmation email to <span class="font-medium" id="subscriber-email">{{.EmailAddress}}</span>.</p>
+                        <p class="mt-1">Please click the link inside to complete your subscription.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            <h3 class="text-lg font-semibold mb-3 text-gray-800">What to expect next</h3>
+
+            <div class="flex items-start space-x-3">
+                <div class="bg-primary/10 rounded-full p-2 text-primary">
+                    <i class="fa-solid fa-envelope"></i>
+                </div>
+                <div>
+                    <h4 class="font-medium text-gray-800">Weekly Newsletters</h4>
+                    <p class="text-sm text-gray-600">Get the latest updates, news and tips delivered to your inbox.</p>
+                </div>
+            </div>
+
+            <div class="flex items-start space-x-3">
+                <div class="bg-primary/10 rounded-full p-2 text-primary">
+                    <i class="fa-solid fa-tag"></i>
+                </div>
+                <div>
+                    <h4 class="font-medium text-gray-800">Exclusive Content</h4>
+                    <p class="text-sm text-gray-600">Access to content only available to our subscribers.</p>
+                </div>
+            </div>
+
+            <div class="flex items-start space-x-3">
+                <div class="bg-primary/10 rounded-full p-2 text-primary">
+                    <i class="fa-solid fa-gift"></i>
+                </div>
+                <div>
+                    <h4 class="font-medium text-gray-800">Special Offers</h4>
+                    <p class="text-sm text-gray-600">Be the first to know about our special promotions and discounts.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 pt-6 border-t border-gray-100">
+            <div class="flex flex-col sm:flex-row sm:justify-between space-y-3 sm:space-y-0">
+                <a href="/subscription/form" class="btn-hover bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-lg flex items-center justify-center">
+                    <span>Back to Home</span>
+                    <i class="fa-solid fa-arrow-right ml-2"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+</div>
+
+<footer class="container mx-auto px-4 py-6 border-t border-gray-200 text-center text-gray-500 text-sm">
+    Powered by <a target="_blank" rel="noreferrer" href="https://www.billionmail.com" class="text-primary hover:underline">BillionMail</a>
+</footer>
+
+</body>
+</html>

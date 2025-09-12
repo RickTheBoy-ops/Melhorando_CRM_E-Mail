@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste de Conectividade</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: white;
+            color: black;
+            padding: 30px;
+            border-radius: 10px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✅ Servidor Funcionando!</h1>
+        <p>Se você está vendo esta página, o servidor Node.js está funcionando corretamente.</p>
+        <p>Hora atual: <span id="time"></span></p>
+        <button onclick="window.location.href='/login.html'">Ir para Login</button>
+    </div>
+    
+    <script>
+        document.getElementById('time').textContent = new Date().toLocaleString();
+    </script>
+</body>
+</html>

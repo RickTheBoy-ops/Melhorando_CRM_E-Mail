@@ -1,0 +1,329 @@
+version: '3.8'
+
+services:
+  # API Gateway
+  gateway:
+    build: ./gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - GIN_MODE=release
+      - AUTH_SERVICE_URL=http://auth-service:8001
+      - EMAIL_SERVICE_URL=http://email-service:8002
+      - CAMPAIGN_SERVICE_URL=http://campaign-service:8003
+      - CONTACT_SERVICE_URL=http://contact-service:8004
+      - ANALYTICS_SERVICE_URL=http://analytics-service:8005
+      - TEMPLATE_SERVICE_URL=http://template-service:8006
+    depends_on:
+      - auth-service
+      - email-service
+      - campaign-service
+      - contact-service
+      - analytics-service
+      - template-service
+    networks:
+      - billionmail-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Authentication Service
+  auth-service:
+    build: ./services/auth-service
+    ports:
+      - "8001:8001"
+    environment:
+      - GIN_MODE=release
+      - DATABASE_URL=postgres://billionmail_user:billionmail_pass@postgres:5432/billionmail_auth?sslmode=disable
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - REDIS_URL=redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - billionmail-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Email Service
+  email-service:
+    build: ./services/email-service
+    ports:
+      - "8002:8002"
+    environment:
+      - GIN_MODE=release
+      - REDIS_URL=redis:6379
+      - SMTP_HOST=postfix
+      - SMTP_PORT=587
+      - SMTP_USER=billionmail@localhost
+      - SMTP_PASS=your-smtp-password
+      - SMTP_MAX_CONNECTIONS=20
+      - MAX_WORKERS=50
+    depends_on:
+      redis:
+        condition: service_healthy
+      postfix:
+        condition: service_started
+    networks:
+      - billionmail-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Campaign Service
+  campaign-service:
+    build: ./services/campaign-service
+    ports:
+      - "8003:8003"
+    environment:
+      - GIN_MODE=release
+      - DATABASE_URL=postgres://billionmail_user:billionmail_pass@postgres:5432/billionmail_campaigns?sslmode=disable
+      - REDIS_URL=redis:6379
+      - EMAIL_SERVICE_URL=http://email-service:8002
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      email-service:
+        condition: service_healthy
+    networks:
+      - billionmail-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Contact Service (placeholder for future implementation)
+  contact-service:
+    image: nginx:alpine
+    ports:
+      - "8004:80"
+    command: >
+      sh -c "echo 'server { listen 80; location /health { return 200 \"OK\"; add_header Content-Type text/plain; } location / { return 503 \"Contact Service - Coming Soon\"; add_header Content-Type text/plain; } }' > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
+    networks:
+      - billionmail-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Analytics Service (placeholder for future implementation)
+  analytics-service:
+    image: nginx:alpine
+    ports:
+      - "8005:80"
+    command: >
+      sh -c "echo 'server { listen 80; location /health { return 200 \"OK\"; add_header Content-Type text/plain; } location / { return 503 \"Analytics Service - Coming Soon\"; add_header Content-Type text/plain; } }' > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
+    networks:
+      - billionmail-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Template Service (placeholder for future implementation)
+  template-service:
+    image: nginx:alpine
+    ports:
+      - "8006:80"
+    command: >
+      sh -c "echo 'server { listen 80; location /health { return 200 \"OK\"; add_header Content-Type text/plain; } location / { return 503 \"Template Service - Coming Soon\"; add_header Content-Type text/plain; } }' > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
+    networks:
+      - billionmail-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=billionmail
+      - POSTGRES_USER=billionmail_user
+      - POSTGRES_PASSWORD=billionmail_pass
+      - POSTGRES_MULTIPLE_DATABASES=billionmail_auth,billionmail_campaigns,billionmail_contacts,billionmail_analytics
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-multiple-databases.sh:/docker-entrypoint-initdb.d/init-multiple-databases.sh:ro
+      - ./infrastructure/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    networks:
+      - billionmail-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U billionmail_user -d billionmail"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --appendonly yes
+      --appendfsync everysec
+    volumes:
+      - redis_data:/data
+    networks:
+      - billionmail-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Postfix SMTP Server
+  postfix:
+    image: catatnight/postfix:latest
+    ports:
+      - "25:25"
+      - "587:587"
+    environment:
+      - maildomain=localhost
+      - smtp_user=billionmail:billionmail_pass
+    volumes:
+      - postfix_data:/var/spool/postfix
+    networks:
+      - billionmail-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "25"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - billionmail-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=billionmail_grafana
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infrastructure/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - billionmail-network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx Load Balancer (optional)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infrastructure/nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - gateway
+    networks:
+      - billionmail-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# Networks
+networks:
+  billionmail-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Volumes
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  postfix_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local

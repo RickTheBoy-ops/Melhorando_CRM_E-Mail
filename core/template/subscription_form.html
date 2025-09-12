@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Subscribe - Mailing list</title>
+    <meta name="description" content="" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#20a53a',
+                        secondary: '#36BFFA',
+                        neutral: '#F5F7FA',
+                        dark: '#1D2129',
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .form-input-focus {
+                @apply focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none;
+            }
+            .btn-hover {
+                @apply hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300;
+            }
+        }
+
+        input[type="checkbox"]:checked {
+            background-color: #20a53a !important;
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e") !important;
+            border-color: #20a53a !important;
+        }
+
+        input[type="checkbox"]:checked:hover,
+        input[type="checkbox"]:checked:focus {
+            background-color: #20a53a !important;
+            border-color: #20a53a !important;
+        }
+
+        input[type="checkbox"]:focus {
+            --tw-ring-color: rgba(32, 165, 58, 0.3) !important;
+            --tw-ring-opacity: 0.3 !important;
+        }
+
+        .focus\:ring-primary:focus {
+            --tw-ring-color: rgba(32, 165, 58, var(--tw-ring-opacity)) !important;
+        }
+
+        .text-primary {
+            color: #20a53a !important;
+        }
+    </style>
+
+    <link rel="icon" href="/favicon.ico?v=bbe064771e" type="image/png" />
+</head>
+<body class="font-inter bg-neutral text-dark min-h-screen flex flex-col">
+<div class="container mx-auto px-4 py-8 flex-grow">
+    <header class="header mb-12">
+        <div class="logo flex justify-center">
+            <a href="/subscription/form" class="inline-block">
+                <img src="/static/logo.png?v=bbe064771e" alt="Subscribe" class="h-16 md:h-20" />
+            </a>
+        </div>
+    </header>
+
+    <section class="max-w-md mx-auto bg-white rounded-xl shadow-lg p-6 md:p-8 transform transition-all hover:shadow-xl">
+        <h2 class="text-2xl md:text-3xl font-bold mb-6 text-center text-dark">Subscribe to our Newsletter</h2>
+
+        <form method="post" action="" class="form space-y-5">
+            <input id="token" type="hidden" name="token" value="{{.CSRFToken}}">
+            <div class="space-y-4">
+                <p>
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+                <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                                <i class="fa-regular fa-envelope"></i>
+                            </span>
+                    <input id="email" name="email" required="true" type="email" placeholder="your@email.com"
+                           class="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 bg-gray-50 form-input-focus"
+                           autofocus="true">
+                </div>
+                </p>
+
+                <p>
+                    <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Name (optional)</label>
+                <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                                <i class="fa-regular fa-user"></i>
+                            </span>
+                    <input id="name" name="name" type="text" placeholder="Your name"
+                           class="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 bg-gray-50 form-input-focus">
+                </div>
+                </p>
+
+                <ul class="lists space-y-3 pt-2">
+                    <h3 class="text-lg font-semibold mb-3 text-gray-800">Choose your subscription</h3>
+
+                    {{range $_, $group := .Groups}}
+                    <li class="flex items-center">
+                        <input checked="true" id="l-{{$group.Id}}" type="checkbox" name="group_ids"
+                               value="{{$group.Id}}"
+                               style="accent-color: #20a53a;"
+                               class="h-5 w-5 text-primary focus:ring-primary border-gray-300 rounded">
+                        <label for="l-{{$group.Id}}"
+                               class="ml-2 block text-sm text-gray-700 cursor-pointer">
+                            {{$group.Name}}
+                        </label>
+                    </li>
+                    {{end}}
+                </ul>
+            </div>
+
+            <p class="pt-2">
+                <button type="submit" class="button w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg shadow btn-hover flex items-center justify-center">
+                    <span>Subscribe</span>
+                    <i class="fa-solid fa-paper-plane ml-2"></i>
+                </button>
+            </p>
+        </form>
+    </section>
+</div>
+
+<footer class="container mx-auto px-4 py-6 border-t border-gray-200 text-center text-gray-500 text-sm">
+    Powered by <a target="_blank" rel="noreferrer" href="https://www.billionmail.com" class="text-primary hover:underline">BillionMail</a>
+</footer>
+</body>
+</html>
+    

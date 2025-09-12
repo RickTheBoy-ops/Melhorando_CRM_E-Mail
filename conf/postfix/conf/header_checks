@@ -1,0 +1,8 @@
+if /^\s*Received:.*Authenticated sender.*\(PostBillionMail\)/
+/^Received: from .*? \([\w\-.]* \[.*?\]\)(.*|\n.*)\(Authenticated sender: (.+)\)\s+by.+\(PostBillionMail\) with (.*)/
+  REPLACE Received: from [127.0.0.1] (localhost [127.0.0.1]) by localhost (Mailerdaemon) with $3
+endif
+
+/^\s*X-Enigmail/        IGNORE
+/^\s*X-Originating-IP/  IGNORE
+/^\s*X-Forward/         IGNORE

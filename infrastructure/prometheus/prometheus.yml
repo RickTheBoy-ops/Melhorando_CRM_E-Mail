@@ -1,0 +1,83 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # API Gateway
+  - job_name: 'gateway'
+    static_configs:
+      - targets: ['gateway:8080']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Auth Service
+  - job_name: 'auth-service'
+    static_configs:
+      - targets: ['auth-service:8001']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Email Service
+  - job_name: 'email-service'
+    static_configs:
+      - targets: ['email-service:8002']
+    metrics_path: '/metrics'
+    scrape_interval: 15s  # More frequent for email metrics
+
+  # Campaign Service
+  - job_name: 'campaign-service'
+    static_configs:
+      - targets: ['campaign-service:8003']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Contact Service (when implemented)
+  - job_name: 'contact-service'
+    static_configs:
+      - targets: ['contact-service:8004']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Analytics Service (when implemented)
+  - job_name: 'analytics-service'
+    static_configs:
+      - targets: ['analytics-service:8005']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Template Service (when implemented)
+  - job_name: 'template-service'
+    static_configs:
+      - targets: ['template-service:8006']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # PostgreSQL Exporter (optional)
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+
+  # Redis Exporter (optional)
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']
+
+  # Node Exporter (optional)
+  # - job_name: 'node'
+  #   static_configs:
+  #     - targets: ['node-exporter:9100']

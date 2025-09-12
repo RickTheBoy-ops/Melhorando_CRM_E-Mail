@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BillionMail - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        
+        .welcome-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .welcome-card h1 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+        
+        .welcome-card p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        
+        .feature-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: transform 0.3s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .feature-card h3 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+        
+        .feature-card p {
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+        
+        .feature-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: transform 0.2s;
+        }
+        
+        .feature-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4CAF50;
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">📧 BillionMail</div>
+        <div class="user-info">
+            <span id="user-name">Usuário</span>
+            <button class="logout-btn" onclick="logout()">Sair</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="welcome-card">
+            <h1>🎉 Bem-vindo ao BillionMail!</h1>
+            <p>Sistema de gerenciamento de email funcionando corretamente.</p>
+            <p><span class="status-indicator"></span>Todos os serviços estão online</p>
+        </div>
+        
+        <div class="features-grid">
+            <div class="feature-card">
+                <h3>📬 Gerenciar Emails</h3>
+                <p>Envie, receba e organize seus emails de forma eficiente.</p>
+                <button class="feature-btn" onclick="openFeature('emails')">Acessar Emails</button>
+            </div>
+            
+            <div class="feature-card">
+                <h3>👥 Contatos</h3>
+                <p>Gerencie sua lista de contatos e grupos de email.</p>
+                <button class="feature-btn" onclick="openFeature('contacts')">Gerenciar Contatos</button>
+            </div>
+            
+            <div class="feature-card">
+                <h3>📊 Campanhas</h3>
+                <p>Crie e monitore campanhas de email marketing.</p>
+                <button class="feature-btn" onclick="openFeature('campaigns')">Criar Campanha</button>
+            </div>
+            
+            <div class="feature-card">
+                <h3>⚙️ Configurações</h3>
+                <p>Personalize suas preferências e configurações do sistema.</p>
+                <button class="feature-btn" onclick="openFeature('settings')">Configurações</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Verificar se há token no localStorage
+        const token = localStorage.getItem('billionmail_token');
+        const userInfo = localStorage.getItem('billionmail_user');
+        
+        if (!token) {
+            // Se não há token, redirecionar para login
+            window.location.href = '/login.html';
+        } else {
+            // Exibir informações do usuário
+            if (userInfo) {
+                const user = JSON.parse(userInfo);
+                document.getElementById('user-name').textContent = user.name || user.email;
+            }
+        }
+        
+        function logout() {
+            localStorage.removeItem('billionmail_token');
+            localStorage.removeItem('billionmail_user');
+            window.location.href = '/login.html';
+        }
+        
+        function openFeature(feature) {
+            alert(`Funcionalidade "${feature}" será implementada em breve!\n\nToken disponível para integração com APIs.`);
+        }
+        
+        // Verificar se o token ainda é válido
+        async function checkTokenValidity() {
+            try {
+                const response = await fetch('http://localhost:8080/health', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok && response.status === 401) {
+                    // Token inválido, fazer logout
+                    logout();
+                }
+            } catch (error) {
+                console.log('Erro ao verificar token:', error);
+            }
+        }
+        
+        // Verificar token a cada 5 minutos
+        setInterval(checkTokenValidity, 5 * 60 * 1000);
+        
+        // Verificar token ao carregar a página
+        checkTokenValidity();
+    </script>
+</body>
+</html>
