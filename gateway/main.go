@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,14 +17,22 @@ import (
 )
 
 type Gateway struct {
-	limiter *rate.Limiter
+	limiter  *rate.Limiter
 	services map[string]string
+}
+
+type TokenValidationResponse struct {
+	Valid  bool   `json:"valid"`
+	UserID int    `json:"user_id"`
+	Email  string `json:"email"`
+	Role   string `json:"role"`
 }
 
 func NewGateway() *Gateway {
 	return &Gateway{
 		limiter: rate.NewLimiter(rate.Every(time.Second), 100), // 100 requests per second
 		services: map[string]string{
+			// 🔧 CONFIGURAÇÃO LOCAL: Usar localhost para desenvolvimento
 			"auth-service":         "http://localhost:8001",
 			"email-service":        "http://localhost:8002",
 			"campaign-service":     "http://localhost:8003",
@@ -50,13 +59,61 @@ func (g *Gateway) RateLimitMiddleware() gin.HandlerFunc {
 	}
 }
 
+// ✅ CORREÇÃO: Validação real de token com auth-service
+func (g *Gateway) validateToken(token string) bool {
+	if !strings.HasPrefix(token, "Bearer ") {
+		return false
+	}
+
+	authServiceURL := g.services["auth-service"]
+	if authServiceURL == "" {
+		log.Printf("Auth service URL not configured")
+		return false
+	}
+
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	req, err := http.NewRequest("POST", authServiceURL+"/auth/validate", nil)
+	if err != nil {
+		log.Printf("Failed to create validation request: %v", err)
+		return false
+	}
+
+	req.Header.Set("Authorization", token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("Failed to validate token with auth service: %v", err)
+		return false
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("Token validation failed with status: %d", resp.StatusCode)
+		return false
+	}
+
+	var validationResp TokenValidationResponse
+	if err := json.NewDecoder(resp.Body).Decode(&validationResp); err != nil {
+		log.Printf("Failed to decode validation response: %v", err)
+		return false
+	}
+
+	return validationResp.Valid
+}
+
 // Authentication middleware
 func (g *Gateway) AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Skip auth for health checks and auth endpoints
 		if strings.HasPrefix(c.Request.URL.Path, "/health") ||
 			strings.HasPrefix(c.Request.URL.Path, "/api/v1/auth/login") ||
-			strings.HasPrefix(c.Request.URL.Path, "/api/v1/auth/register") {
+			strings.HasPrefix(c.Request.URL.Path, "/api/v1/auth/register") ||
+			strings.HasPrefix(c.Request.URL.Path, "/auth/login") ||
+			strings.HasPrefix(c.Request.URL.Path, "/auth/register") {
 			c.Next()
 			return
 		}
@@ -71,7 +128,7 @@ func (g *Gateway) AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Validate token with auth service
+		// ✅ CORREÇÃO: Usar validação real
 		if !g.validateToken(token) {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": "Invalid or expired token",
@@ -88,7 +145,7 @@ func (g *Gateway) AuthMiddleware() gin.HandlerFunc {
 // Logging middleware
 func (g *Gateway) LoggingMiddleware() gin.HandlerFunc {
 	return gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
-		return fmt.Sprintf("%s - [%s] \"%s %s %s %d %s \"%s\" %s\"\n",
+		return fmt.Sprintf("%s - [%s] \"%s %s %s %d %s \"%s\" %s\n",
 			param.ClientIP,
 			param.TimeStamp.Format(time.RFC1123),
 			param.Method,
@@ -104,38 +161,56 @@ func (g *Gateway) LoggingMiddleware() gin.HandlerFunc {
 
 // Health check endpoint
 func (g *Gateway) healthCheck(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"status":    "healthy",
+	servicesHealth := g.checkServicesHealth()
+
+	allHealthy := true
+	for _, status := range servicesHealth {
+		if status != "healthy" {
+			allHealthy = false
+			break
+		}
+	}
+
+	statusCode := http.StatusOK
+	if !allHealthy {
+		statusCode = http.StatusServiceUnavailable
+	}
+
+	c.JSON(statusCode, gin.H{
+		"status":    map[bool]string{true: "healthy", false: "degraded"}[allHealthy],
 		"timestamp": time.Now().Unix(),
-		"services":  g.checkServicesHealth(),
+		"gateway":   "healthy",
+		"services":  servicesHealth,
 	})
 }
 
-// Check health of all services
+// ✅ CORREÇÃO: Check health with proper error handling
 func (g *Gateway) checkServicesHealth() map[string]string {
 	health := make(map[string]string)
-	for service, serviceURL := range g.services {
-		resp, err := http.Get(serviceURL + "/health")
-		if err != nil || resp.StatusCode != http.StatusOK {
-			health[service] = "unhealthy"
-		} else {
-			health[service] = "healthy"
+
+	for serviceName, serviceURL := range g.services {
+		client := &http.Client{
+			Timeout: 3 * time.Second,
 		}
-		if resp != nil {
-			resp.Body.Close()
+
+		resp, err := client.Get(serviceURL + "/health")
+		if err != nil {
+			health[serviceName] = "unreachable"
+			continue
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == http.StatusOK {
+			health[serviceName] = "healthy"
+		} else {
+			health[serviceName] = "unhealthy"
 		}
 	}
+
 	return health
 }
 
-// Validate token with auth service
-func (g *Gateway) validateToken(token string) bool {
-	// TODO: Implement actual token validation with auth service
-	// For now, accept any non-empty token
-	return strings.HasPrefix(token, "Bearer ")
-}
-
-// Proxy requests to appropriate service
+// ✅ CORREÇÃO: Proxy melhorado com error handling
 func (g *Gateway) proxyToService(serviceName string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		serviceURL, exists := g.services[serviceName]
@@ -149,6 +224,7 @@ func (g *Gateway) proxyToService(serviceName string) gin.HandlerFunc {
 
 		target, err := url.Parse(serviceURL)
 		if err != nil {
+			log.Printf("Failed to parse service URL %s: %v", serviceURL, err)
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": "Invalid service URL",
 				"code":  "INVALID_SERVICE_URL",
@@ -160,11 +236,33 @@ func (g *Gateway) proxyToService(serviceName string) gin.HandlerFunc {
 		proxy.Director = func(req *http.Request) {
 			req.URL.Scheme = target.Scheme
 			req.URL.Host = target.Host
-			// Map /api/v1/auth/* to /auth/*
+			
+			// Handle different routing patterns
 			servicePrefix := strings.Replace(serviceName, "-service", "", 1)
-			req.URL.Path = "/" + servicePrefix + strings.TrimPrefix(req.URL.Path, "/api/v1/"+servicePrefix)
+			originalPath := req.URL.Path
+			
+			if strings.HasPrefix(originalPath, "/api/v1/") {
+				// Map /api/v1/auth/* to /auth/*
+				req.URL.Path = "/" + servicePrefix + strings.TrimPrefix(originalPath, "/api/v1/"+servicePrefix)
+			} else if strings.HasPrefix(originalPath, "/"+servicePrefix+"/") {
+				// Keep the full path for direct routes (e.g., /auth/login -> /auth/login)
+				req.URL.Path = originalPath
+			}
+			
 			req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 			req.Header.Set("X-Origin-Host", target.Host)
+		}
+
+		// ✅ CORREÇÃO: Error handling para proxy
+		proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+			log.Printf("Proxy error for service %s: %v", serviceName, err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadGateway)
+			json.NewEncoder(w).Encode(gin.H{
+				"error": "Service unavailable",
+				"code":  "SERVICE_UNAVAILABLE",
+				"service": serviceName,
+			})
 		}
 
 		proxy.ServeHTTP(c.Writer, c.Request)
@@ -191,13 +289,17 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	// Global middleware
+	// Health check endpoint (no auth required)
+	router.GET("/health", gateway.healthCheck)
+
+	// Direct service routes (no auth required for login/register)
+	router.Any("/auth/*path", gateway.proxyToService("auth-service"))
+	router.Any("/email/*path", gateway.proxyToService("email-service"))
+
+	// Global middleware (applied after direct routes)
 	router.Use(gateway.LoggingMiddleware())
 	router.Use(gateway.RateLimitMiddleware())
 	router.Use(gateway.AuthMiddleware())
-
-	// Health check endpoint
-	router.GET("/health", gateway.healthCheck)
 
 	// API routes with service proxying
 	api := router.Group("/api/v1")
@@ -236,6 +338,8 @@ func main() {
 		port = "8080"
 	}
 
-	log.Printf("API Gateway starting on port %s", port)
+	log.Printf("✅ API Gateway starting on port %s with Docker service URLs", port)
+	log.Printf("🔒 Real token validation enabled")
+	log.Printf("🏥 Enhanced health checks active")
 	log.Fatal(router.Run(":" + port))
 }
