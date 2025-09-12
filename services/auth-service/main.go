@@ -58,11 +58,61 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
+// Funções auxiliares para configuração
+func getEnvWithDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func isWeakSecret(secret string) bool {
+	// Verificar se o secret é muito simples
+	weakSecrets := []string{
+		"secret", "password", "123456", "admin", "test",
+		"jwt-secret", "your-secret", "change-me", "default",
+	}
+	
+	lowerSecret := strings.ToLower(secret)
+	for _, weak := range weakSecrets {
+		if strings.Contains(lowerSecret, weak) {
+			return true
+		}
+	}
+	
+	// Verificar se tem caracteres repetidos demais
+	if len(secret) > 0 {
+		charCount := make(map[rune]int)
+		for _, char := range secret {
+			charCount[char]++
+		}
+		
+		// Se mais de 50% dos caracteres são iguais, é fraco
+		for _, count := range charCount {
+			if float64(count)/float64(len(secret)) > 0.5 {
+				return true
+			}
+		}
+	}
+	
+	return false
+}
+
 func NewAuthService() (*AuthService, error) {
-	// Database connection
+	// Database connection com fallback Docker
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://billionmail:NauF7ysRYyt9HTOiOn4JjIAL3QcRZnzj@localhost:25432/billionmail?sslmode=disable"
+		// Fallback para ambiente Docker usando nome do container
+		dbUser := getEnvWithDefault("DBUSER", "billionmail")
+		dbPass := getEnvWithDefault("DBPASS", "NauF7ysRYyt9HTOiOn4JjIAL3QcRZnzj")
+		dbName := getEnvWithDefault("DBNAME", "billionmail")
+		dbHost := getEnvWithDefault("DB_HOST", "pgsql") // Nome do container Docker
+		dbPort := getEnvWithDefault("DB_PORT", "5432")
+		
+		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", 
+			dbUser, dbPass, dbHost, dbPort, dbName)
+		log.Printf("Using Docker fallback DATABASE_URL: postgres://%s:***@%s:%s/%s", 
+			dbUser, dbHost, dbPort, dbName)
 	}
 
 	db, err := pgxpool.New(context.Background(), dbURL)
@@ -70,19 +120,37 @@ func NewAuthService() (*AuthService, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Test connection
-	if err := db.Ping(context.Background()); err != nil {
+	// Test connection with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := db.Ping(ctx); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
+	log.Println("✅ Database connection established successfully")
 
-	// JWT secret
+	// JWT secret com validação de segurança
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
-		// Generate random secret for development
-		secretBytes := make([]byte, 32)
-		rand.Read(secretBytes)
-		jwtSecret = hex.EncodeToString(secretBytes)
-		log.Printf("Generated JWT secret: %s", jwtSecret)
+		// Fallback seguro para desenvolvimento
+		jwtSecret = "BillionMail_Development_JWT_Secret_Key_2024_Change_In_Production_!@#$%^&*()"
+		log.Printf("⚠️  WARNING: Using default JWT_SECRET for development. Change in production!")
+	} else {
+		// Validar segurança do JWT secret
+		if len(jwtSecret) < 32 {
+			return nil, fmt.Errorf("JWT_SECRET must be at least 32 characters long for security")
+		}
+		if isWeakSecret(jwtSecret) {
+			log.Printf("⚠️  WARNING: JWT_SECRET appears to be weak. Use a strong, random secret in production!")
+		}
+		log.Println("✅ JWT_SECRET configured from environment")
+	}
+
+	// Redis URL para futuras funcionalidades
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		redisPass := getEnvWithDefault("REDISPASS", "zKLnZQr3riFpcS2lEy3MOtfncztaCGKp")
+		redisURL = fmt.Sprintf("redis://:%s@redis:6379", redisPass)
+		log.Printf("Using Docker fallback REDIS_URL: redis://:***@redis:6379")
 	}
 
 	service := &AuthService{
@@ -95,6 +163,7 @@ func NewAuthService() (*AuthService, error) {
 		return nil, fmt.Errorf("failed to initialize schema: %w", err)
 	}
 
+	log.Printf("🚀 Auth Service initialized successfully on port %s", getEnvWithDefault("PORT", "8001"))
 	return service, nil
 }
 
@@ -371,23 +440,69 @@ func (s *AuthService) validateTokenHandler(c *gin.Context) {
 }
 
 func (s *AuthService) healthCheck(c *gin.Context) {
-	// Check database connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	healthStatus := gin.H{
+		"service":   "auth-service",
+		"timestamp": time.Now().Unix(),
+		"version":   "1.0.0",
+	}
+
+	// Check database connection
 	if err := s.db.Ping(ctx); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status": "unhealthy",
-			"error":  "Database connection failed",
-		})
+		healthStatus["status"] = "unhealthy"
+		healthStatus["database"] = gin.H{
+			"status": "disconnected",
+			"error":  err.Error(),
+		}
+		c.JSON(http.StatusServiceUnavailable, healthStatus)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"status":    "healthy",
-		"timestamp": time.Now().Unix(),
-		"service":   "auth-service",
-	})
+	// Test database query
+	var dbVersion string
+	err := s.db.QueryRow(ctx, "SELECT version()").Scan(&dbVersion)
+	if err != nil {
+		healthStatus["status"] = "unhealthy"
+		healthStatus["database"] = gin.H{
+			"status": "connected",
+			"query_error": err.Error(),
+		}
+		c.JSON(http.StatusServiceUnavailable, healthStatus)
+		return
+	}
+
+	// Check if auth_users table exists and is accessible
+	var userCount int
+	err = s.db.QueryRow(ctx, "SELECT COUNT(*) FROM auth_users").Scan(&userCount)
+	if err != nil {
+		healthStatus["status"] = "unhealthy"
+		healthStatus["database"] = gin.H{
+			"status": "connected",
+			"schema_error": err.Error(),
+		}
+		c.JSON(http.StatusServiceUnavailable, healthStatus)
+		return
+	}
+
+	// All checks passed
+	healthStatus["status"] = "healthy"
+	healthStatus["database"] = gin.H{
+		"status": "connected",
+		"users_count": userCount,
+		"version": strings.Split(dbVersion, " ")[1], // Extract PostgreSQL version
+	}
+	healthStatus["jwt"] = gin.H{
+		"configured": len(s.jwtSecret) > 0,
+		"length": len(s.jwtSecret),
+	}
+	healthStatus["environment"] = gin.H{
+		"gin_mode": gin.Mode(),
+		"port": getEnvWithDefault("PORT", "8001"),
+	}
+
+	c.JSON(http.StatusOK, healthStatus)
 }
 
 func main() {

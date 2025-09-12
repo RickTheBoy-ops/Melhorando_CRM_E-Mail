@@ -4,16 +4,24 @@ services:
   # API Gateway
   gateway:
     build: ./gateway
+    container_name: billionmail-gateway
     ports:
-      - "8080:8080"
+      - "${GATEWAY_PORT:-8080}:8080"
     environment:
-      - GIN_MODE=release
-      - AUTH_SERVICE_URL=http://auth-service:8001
-      - EMAIL_SERVICE_URL=http://email-service:8002
-      - CAMPAIGN_SERVICE_URL=http://campaign-service:8003
-      - CONTACT_SERVICE_URL=http://contact-service:8004
-      - ANALYTICS_SERVICE_URL=http://analytics-service:8005
-      - TEMPLATE_SERVICE_URL=http://template-service:8006
+      - PORT=${GATEWAY_PORT:-8080}
+      - GIN_MODE=${GIN_MODE:-release}
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - EMAIL_SERVICE_URL=${EMAIL_SERVICE_URL}
+      - CAMPAIGN_SERVICE_URL=${CAMPAIGN_SERVICE_URL}
+      - CONTACT_SERVICE_URL=${CONTACT_SERVICE_URL}
+      - ANALYTICS_SERVICE_URL=${ANALYTICS_SERVICE_URL}
+      - TEMPLATE_SERVICE_URL=${TEMPLATE_SERVICE_URL}
+      - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - API_RATE_LIMIT=${API_RATE_LIMIT:-100}
+      - API_RATE_WINDOW=${API_RATE_WINDOW:-1s}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     depends_on:
       - auth-service
       - email-service
@@ -34,13 +42,18 @@ services:
   # Authentication Service
   auth-service:
     build: ./services/auth-service
+    container_name: billionmail-auth-service
     ports:
       - "8001:8001"
     environment:
-      - GIN_MODE=release
-      - DATABASE_URL=postgres://billionmail_user:billionmail_pass@postgres:5432/billionmail_auth?sslmode=disable
-      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
-      - REDIS_URL=redis:6379
+      - PORT=8001
+      - GIN_MODE=${GIN_MODE:-release}
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-24h}
+      - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION:-168h}
+      - REDIS_URL=${REDIS_URL}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,17 +72,22 @@ services:
   # Email Service
   email-service:
     build: ./services/email-service
+    container_name: billionmail-email-service
     ports:
       - "8002:8002"
     environment:
-      - GIN_MODE=release
-      - REDIS_URL=redis:6379
-      - SMTP_HOST=postfix
-      - SMTP_PORT=587
-      - SMTP_USER=billionmail@localhost
-      - SMTP_PASS=your-smtp-password
+      - PORT=8002
+      - GIN_MODE=${GIN_MODE:-release}
+      - REDIS_URL=${REDIS_URL}
+      - DATABASE_URL=${DATABASE_URL}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT:-25}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_ENCRYPTION=${SMTP_ENCRYPTION:-tls}
       - SMTP_MAX_CONNECTIONS=20
       - MAX_WORKERS=50
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     depends_on:
       redis:
         condition: service_healthy
@@ -88,13 +106,17 @@ services:
   # Campaign Service
   campaign-service:
     build: ./services/campaign-service
+    container_name: billionmail-campaign-service
     ports:
       - "8003:8003"
     environment:
-      - GIN_MODE=release
-      - DATABASE_URL=postgres://billionmail_user:billionmail_pass@postgres:5432/billionmail_campaigns?sslmode=disable
-      - REDIS_URL=redis:6379
-      - EMAIL_SERVICE_URL=http://email-service:8002
+      - PORT=8003
+      - GIN_MODE=${GIN_MODE:-release}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - EMAIL_SERVICE_URL=${EMAIL_SERVICE_URL}
+      - TEMPLATE_SERVICE_URL=${TEMPLATE_SERVICE_URL}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     depends_on:
       postgres:
         condition: service_healthy

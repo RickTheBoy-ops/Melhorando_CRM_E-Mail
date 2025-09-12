@@ -28,18 +28,28 @@ type TokenValidationResponse struct {
 	Role   string `json:"role"`
 }
 
+// getServiceURL retorna a URL do serviço a partir de variáveis de ambiente
+// com fallback para URLs Docker padrão
+func getServiceURL(serviceName, defaultURL string) string {
+	envVar := strings.ToUpper(strings.ReplaceAll(serviceName, "-", "_")) + "_URL"
+	if url := os.Getenv(envVar); url != "" {
+		return url
+	}
+	return defaultURL
+}
+
 func NewGateway() *Gateway {
 	return &Gateway{
 		limiter: rate.NewLimiter(rate.Every(time.Second), 100), // 100 requests per second
 		services: map[string]string{
-			// 🔧 CONFIGURAÇÃO LOCAL: Usar localhost para desenvolvimento
-			"auth-service":         "http://localhost:8001",
-			"email-service":        "http://localhost:8002",
-			"campaign-service":     "http://localhost:8003",
-			"contact-service":      "http://localhost:8004",
-			"analytics-service":    "http://localhost:8005",
-			"template-service":     "http://localhost:8006",
-			"notification-service": "http://localhost:8007",
+			// 🐳 CONFIGURAÇÃO DOCKER: URLs baseadas em nomes de containers
+			"auth-service":         getServiceURL("auth-service", "http://auth-service:8001"),
+			"email-service":        getServiceURL("email-service", "http://email-service:8002"),
+			"campaign-service":     getServiceURL("campaign-service", "http://campaign-service:8003"),
+			"contact-service":      getServiceURL("contact-service", "http://contact-service:8004"),
+			"analytics-service":    getServiceURL("analytics-service", "http://analytics-service:8005"),
+			"template-service":     getServiceURL("template-service", "http://template-service:8006"),
+			"notification-service": getServiceURL("notification-service", "http://notification-service:8007"),
 		},
 	}
 }
