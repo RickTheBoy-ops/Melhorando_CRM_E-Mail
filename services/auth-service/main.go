@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -194,6 +195,16 @@ func getEnvWithDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
+// getEnvAsInt gets environment variable as integer with default value
+func getEnvAsInt(key string, defaultValue int32) int32 {
+	if value := os.Getenv(key); value != "" {
+		if intValue, err := strconv.ParseInt(value, 10, 32); err == nil {
+			return int32(intValue)
+		}
+	}
+	return defaultValue
+}
+
 func isWeakSecret(secret string) bool {
 	// Verificar se o secret é muito simples
 	weakSecrets := []string{
@@ -228,73 +239,122 @@ func isWeakSecret(secret string) bool {
 
 func NewAuthService() (*AuthService, error) {
 	// =======================================================
-	// SECURE DATABASE CONNECTION - P0 VULNERABILITY FIX
+	// P1 CONNECTION POOL OPTIMIZATION - PERFORMANCE FIX
 	// =======================================================
-	// 🔒 Usando Docker Secrets para credenciais do banco
+	// 🚀 Optimized pgxpool configuration for auth service
 	
-	// Obter credenciais do banco de forma segura
-	dbUser, err := getSecureEnv("POSTGRES_USER", os.Getenv("POSTGRES_USER_FILE"), "billionmail_user")
+	// Get database credentials securely
+	// Priority: Docker Secrets > Environment Variables > Fallback
+	dbUser, err := getSecureEnv("POSTGRES_USER", "/run/secrets/postgres_user", "billionmail_user")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database user: %w", err)
 	}
 	
-	dbPass, err := getSecureEnv("POSTGRES_PASSWORD", os.Getenv("POSTGRES_PASSWORD_FILE"), "")
+	dbPass, err := getSecureEnv("POSTGRES_PASSWORD", "/run/secrets/postgres_password", "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database password: %w", err)
 	}
 	
-	// Configurações do banco (não sensíveis)
-	dbName := getEnvWithDefault("POSTGRES_DB", "billionmail")
+	// Non-sensitive database configurations
+	dbName := getEnvWithDefault("POSTGRES_DB", "billionmail_auth")
 	dbHost := getEnvWithDefault("POSTGRES_HOST", "postgres")
 	dbPort := getEnvWithDefault("POSTGRES_PORT", "5432")
 	
-	// Construir URL do banco com credenciais seguras
+	// Build database URL with secure credentials
 	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", 
 		dbUser, dbPass, dbHost, dbPort, dbName)
+	
+	// Parse connection configuration for pool optimization
+	config, err := pgxpool.ParseConfig(dbURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse database config: %w", err)
+	}
+	
+	// =======================================================
+	// CONNECTION POOL CONFIGURATION - P1 PERFORMANCE
+	// =======================================================
+	// Auth service optimized pool settings
+	config.MaxConns = getEnvAsInt("AUTH_DB_MAX_CONNS", 25)                     // Max connections
+	config.MinConns = getEnvAsInt("AUTH_DB_MIN_CONNS", 5)                      // Min connections
+	config.MaxConnLifetime = time.Duration(getEnvAsInt("AUTH_DB_MAX_CONN_LIFETIME_MINUTES", 60)) * time.Minute   // 1 hour
+	config.MaxConnIdleTime = time.Duration(getEnvAsInt("AUTH_DB_MAX_CONN_IDLE_MINUTES", 15)) * time.Minute       // 15 minutes
+	config.HealthCheckPeriod = time.Duration(getEnvAsInt("AUTH_DB_HEALTH_CHECK_SECONDS", 60)) * time.Second      // 1 minute
+	config.ConnConfig.ConnectTimeout = time.Duration(getEnvAsInt("AUTH_DB_CONNECT_TIMEOUT_SECONDS", 10)) * time.Second // 10 seconds
+	
+	// Runtime parameters for connection optimization
+	config.ConnConfig.RuntimeParams = map[string]string{
+		"application_name": "billionmail-auth",
+		"statement_timeout": "30s",
+	}
+	
 	logrus.WithFields(logrus.Fields{
 		"component": "database",
 		"user":      dbUser,
 		"host":      dbHost,
 		"port":      dbPort,
 		"database":  dbName,
-		"security":  "secure_connection",
-	}).Info("Database connection established")
+		"security":  "docker_secrets_enabled",
+		"pool_config": map[string]interface{}{
+			"max_conns":         config.MaxConns,
+			"min_conns":         config.MinConns,
+			"max_conn_lifetime": config.MaxConnLifetime,
+			"max_conn_idle":     config.MaxConnIdleTime,
+			"health_check":      config.HealthCheckPeriod,
+			"connect_timeout":   config.ConnConfig.ConnectTimeout,
+		},
+	}).Info("Establishing optimized database connection pool")
 
-	db, err := pgxpool.New(context.Background(), dbURL)
+	db, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
-
+	
 	// Test connection with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := db.Ping(ctx); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+	if pingErr := db.Ping(ctx); pingErr != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to ping database: %w", pingErr)
 	}
-	log.Println("✅ Database connection established successfully")
+	
+	logrus.WithFields(logrus.Fields{
+		"component": "database",
+		"status":    "connected",
+		"pool_stats": map[string]interface{}{
+			"max_conns":      db.Config().MaxConns,
+			"min_conns":      db.Config().MinConns,
+			"acquired_conns": db.Stat().AcquiredConns(),
+			"idle_conns":     db.Stat().IdleConns(),
+		},
+	}).Info("Database connection pool established successfully")
 
 	// =======================================================
 	// SECURE JWT SECRET - P0 VULNERABILITY FIX
 	// =======================================================
-	// 🔒 Usando Docker Secret para JWT
+	// 🔒 Using Docker Secret for JWT
 	
-	jwtSecret, err := getSecureEnv("JWT_SECRET", os.Getenv("JWT_SECRET_FILE"), "")
+	jwtSecret, err := getSecureEnv("JWT_SECRET", "/run/secrets/jwt_secret", "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get JWT secret: %w", err)
 	}
 	
-	// Validar segurança do JWT secret
+	// Validate JWT secret security
 	if len(jwtSecret) < 32 {
 		return nil, fmt.Errorf("JWT_SECRET must be at least 32 characters long for security")
 	}
 	if isWeakSecret(jwtSecret) {
 		logrus.WithFields(logrus.Fields{
-		"component": "jwt_config",
-		"security":  "weak_secret",
-		"warning":   "use_strong_secret_in_production",
-	}).Warn("JWT_SECRET appears to be weak")
+			"component": "jwt_config",
+			"security":  "weak_secret_detected",
+			"warning":   "use_strong_secret_in_production",
+		}).Warn("JWT_SECRET appears to be weak")
 	}
-	log.Println("✅ JWT_SECRET configured securely")
+	
+	logrus.WithFields(logrus.Fields{
+		"component": "jwt_config",
+		"status":    "configured",
+		"security":  "docker_secrets_enabled",
+	}).Info("JWT_SECRET configured securely")
 
 	// =======================================================
 	// SECURE REDIS CONNECTION - P0 VULNERABILITY FIX
@@ -677,6 +737,26 @@ func (s *AuthService) healthCheck(c *gin.Context) {
 		"status": "connected",
 		"users_count": userCount,
 		"version": strings.Split(dbVersion, " ")[1], // Extract PostgreSQL version
+		"pool_stats": gin.H{
+			"max_conns":           s.db.Config().MaxConns,
+			"min_conns":           s.db.Config().MinConns,
+			"acquired_conns":      s.db.Stat().AcquiredConns(),
+			"idle_conns":          s.db.Stat().IdleConns(),
+			"total_conns":         s.db.Stat().TotalConns(),
+			"new_conns_count":     s.db.Stat().NewConnsCount(),
+			"max_lifetime_destroy_count": s.db.Stat().MaxLifetimeDestroyCount(),
+			"max_idle_destroy_count": s.db.Stat().MaxIdleDestroyCount(),
+			"acquire_count":       s.db.Stat().AcquireCount(),
+			"acquire_duration":    s.db.Stat().AcquireDuration().String(),
+			"empty_acquire_count": s.db.Stat().EmptyAcquireCount(),
+			"canceled_acquire_count": s.db.Stat().CanceledAcquireCount(),
+		},
+		"pool_config": gin.H{
+			"max_conn_lifetime": s.db.Config().MaxConnLifetime.String(),
+			"max_conn_idle_time": s.db.Config().MaxConnIdleTime.String(),
+			"health_check_period": s.db.Config().HealthCheckPeriod.String(),
+			"connect_timeout": s.db.Config().ConnConfig.ConnectTimeout.String(),
+		},
 	}
 	healthStatus["jwt"] = gin.H{
 		"configured": len(s.jwtSecret) > 0,
