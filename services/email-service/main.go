@@ -225,7 +225,7 @@ func readSecret(secretFile string) (string, error) {
 func getSecureEnv(envVar, secretFile string) (string, error) {
 	// Priority 1: Docker Secret (production)
 	if secretFile != "" {
-		if secret, err := readSecret(secretFile); err == nil {
+		if secret, readErr := readSecret(secretFile); readErr == nil {
 			return secret, nil
 		}
 	}
@@ -241,7 +241,7 @@ func getSecureEnv(envVar, secretFile string) (string, error) {
 // Helper function to get environment variable as integer with default value
 func getEnvAsInt(envVar string, defaultValue int) int {
 	if val := os.Getenv(envVar); val != "" {
-		if intVal, err := strconv.Atoi(val); err == nil {
+		if intVal, parseErr := strconv.Atoi(val); parseErr == nil {
 			return intVal
 		}
 	}
@@ -553,8 +553,7 @@ func (w *Worker) Start() {
 	}()
 }
 
-// P0 RACE CONDITION FIX: Worker with distributed locks
-// P0 RACE CONDITION FIX: Thread-safe worker with atomic dequeue
+// P0 RACE CONDITION FIX: Optimized worker loop with atomic processing
 func (w *Worker) StartRedisWorker() {
 	go func() {
 		for {
@@ -567,46 +566,25 @@ func (w *Worker) StartRedisWorker() {
 				}).Info("Worker shutting down gracefully")
 				return
 			default:
-				// Atomic dequeue com lock integrado
-				job, err := w.service.dequeueEmailAtomic("email_queue")
-				if err != nil {
-					logrus.WithFields(logrus.Fields{
-						"component": "worker",
-						"worker_id": w.id,
-						"error":     err.Error(),
-					}).Error("Worker dequeue error")
-					time.Sleep(1 * time.Second)
-					continue
-				}
-				
+				// Novo padrão: dequeue atômico com processamento em goroutine
+				job, _ := w.service.dequeueEmailAtomic("email_queue")
 				if job != nil {
-					// Verificar duplicação antes de processar
-					if w.service.isDuplicateJob(*job) {
-						logrus.WithFields(logrus.Fields{
-							"component": "worker",
-							"worker_id": w.id,
-							"job_id":    job.ID,
-						}).Info("Duplicate job detected, skipping")
-						// Liberar lock do job duplicado
-						w.service.releaseJobLock(job.ID)
-						continue
-					}
-					w.processEmailSafe(*job)
+					go w.processJobAtomic(*job)
 				} else {
-					// Process retry queue se main queue vazia
-					retryJob, err := w.service.dequeueEmailAtomic("retry_queue")
-					if err == nil && retryJob != nil {
+					// Tentar retry queue se main queue vazia
+					retryJob, _ := w.service.dequeueEmailAtomic("retry_queue")
+					if retryJob != nil {
 						// Check if it's time to retry
 						if time.Now().After(retryJob.NextRetry) {
-							w.processEmailSafe(*retryJob)
+							go w.processJobAtomic(*retryJob)
 						} else {
 							// Put back in retry queue
 							w.service.enqueueEmail(*retryJob, "retry_queue")
 							w.service.releaseJobLock(retryJob.ID)
 						}
 					} else {
-						// Prevent busy waiting when no jobs available
-						time.Sleep(100 * time.Millisecond)
+						// Sleep otimizado conforme especificação
+						time.Sleep(50 * time.Millisecond)
 					}
 				}
 			}
@@ -620,35 +598,58 @@ func (w *Worker) Stop() {
 	}()
 }
 
-// P0 RACE CONDITION FIX: Safe email processing with lock cleanup
-func (w *Worker) processEmailSafe(job EmailJob) {
+// P0 RACE CONDITION FIX: Processamento atômico com todas as verificações de segurança
+func (w *Worker) processJobAtomic(job EmailJob) {
 	start := time.Now()
 	defer func() {
 		w.service.metrics.processingTime.Observe(time.Since(start).Seconds())
 		// SEMPRE liberar job lock no final
 		if err := w.service.releaseJobLock(job.ID); err != nil {
 			logrus.WithFields(logrus.Fields{
-			"component": "worker",
-			"worker_id": w.id,
-			"job_id":    job.ID,
-			"error":     err.Error(),
-		}).Warn("Failed to release job lock")
+				"component": "worker",
+				"worker_id": w.id,
+				"job_id":    job.ID,
+				"error":     err.Error(),
+			}).Warn("Failed to release job lock")
 		}
 	}()
 
-	// Verificar se job já foi processado (double-check)
-	status, err := w.service.getJobStatusValue(job.ID)
-	if err == nil && (status == "sent" || status == "processing") {
+	// 1. Confirmar que o lock já foi adquirido
+	ctx := context.Background()
+	lockKey := fmt.Sprintf("job_processing:%s", job.ID)
+	lockExists := w.service.redisClient.Exists(ctx, lockKey).Val()
+	if lockExists == 0 {
 		logrus.WithFields(logrus.Fields{
 			"component": "worker",
 			"worker_id": w.id,
 			"job_id":    job.ID,
-			"status":    status,
+		}).Warn("Job lock not found, skipping processing")
+		return
+	}
+
+	// 2. Verificar se job já foi processado (idempotência)
+	if w.service.isJobAlreadyProcessed(job.ID) {
+		logrus.WithFields(logrus.Fields{
+			"component": "worker",
+			"worker_id": w.id,
+			"job_id":    job.ID,
 		}).Info("Job already processed, skipping")
 		return
 	}
 
-	// Marcar como processando atomicamente
+	// 3. Verificar fingerprint para evitar duplicatas
+	fingerprint := w.service.generateFingerprint(job)
+	if w.service.isDuplicate(fingerprint) {
+		logrus.WithFields(logrus.Fields{
+			"component": "worker",
+			"worker_id": w.id,
+			"job_id":    job.ID,
+			"fingerprint": fingerprint,
+		}).Info("Duplicate email detected, skipping")
+		return
+	}
+
+	// 4. Marcar status como "processing" via HSETNX
 	if !w.service.setJobStatusIfNotExists(job.ID, "processing", "Email is being processed") {
 		logrus.WithFields(logrus.Fields{
 			"component": "worker",
@@ -658,6 +659,18 @@ func (w *Worker) processEmailSafe(job EmailJob) {
 		return
 	}
 
+	// 5. Marcar fingerprint como processado
+	w.service.markProcessed(fingerprint)
+
+	// 6. Processar o email
+	w.processEmailInternal(job)
+}
+
+// P0 RACE CONDITION FIX: Safe email processing with lock cleanup
+
+
+// P0 RACE CONDITION FIX: Lógica interna de processamento de email
+func (w *Worker) processEmailInternal(job EmailJob) {
 	// Check if email is scheduled for later
 	if job.ScheduledAt != nil && job.ScheduledAt.After(time.Now()) {
 		// Re-queue for later
@@ -668,7 +681,7 @@ func (w *Worker) processEmailSafe(job EmailJob) {
 	}
 
 	// Use circuit breaker for SMTP operations
-	err = w.service.circuitBreaker.Call(func() error {
+	err := w.service.circuitBreaker.Call(func() error {
 		// Get SMTP client from pool
 		client, err := w.service.smtpPool.Get()
 		if err != nil {
@@ -685,14 +698,14 @@ func (w *Worker) processEmailSafe(job EmailJob) {
 
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
-		"component":      "worker",
-		"worker_id":      w.id,
-		"job_id":         job.ID,
-		"correlation_id": job.CorrelationID,
-		"to":             job.To,
-		"subject":        job.Subject,
-		"error":          err.Error(),
-	}).Error("Failed to send email")
+			"component":      "worker",
+			"worker_id":      w.id,
+			"job_id":         job.ID,
+			"correlation_id": job.CorrelationID,
+			"to":             job.To,
+			"subject":        job.Subject,
+			"error":          err.Error(),
+		}).Error("Failed to send email")
 		w.service.metrics.emailsFailed.Inc()
 		
 		// Retry logic
@@ -722,7 +735,7 @@ func (w *Worker) processEmailSafe(job EmailJob) {
 
 // Legacy function for backward compatibility
 func (w *Worker) processEmail(job EmailJob) {
-	w.processEmailSafe(job)
+	w.processJobAtomic(job)
 }
 
 func (w *Worker) sendEmail(client *smtp.Client, job EmailJob) error {
@@ -776,25 +789,7 @@ func (w *Worker) buildEmailMessage(job EmailJob) string {
 	return message
 }
 
-func (w *Worker) handleEmailFailure(job EmailJob, err error) {
-	w.service.metrics.emailsFailed.Inc()
 
-	// Check if we should retry
-	if job.RetryCount < job.MaxRetries {
-		w.service.metrics.retryAttempts.Inc()
-		job.RetryCount++
-		
-		// Exponential backoff
-		delay := time.Duration(job.RetryCount*job.RetryCount) * time.Second
-		time.Sleep(delay)
-		
-		// Re-queue the job
-		w.service.workerPool.AddJob(job)
-		w.service.updateJobStatus(job.ID, "retrying", fmt.Sprintf("Retry %d/%d: %v", job.RetryCount, job.MaxRetries, err))
-	} else {
-		w.service.updateJobStatus(job.ID, "failed", err.Error())
-	}
-}
 
 func NewEmailService() (*EmailService, error) {
 	// =======================================================
@@ -953,7 +948,7 @@ func NewEmailService() (*EmailService, error) {
 
 	circuitTimeout := 30 * time.Second
 	if timeoutStr := os.Getenv("CIRCUIT_BREAKER_TIMEOUT"); timeoutStr != "" {
-		if parsed, err := time.ParseDuration(timeoutStr); err == nil {
+		if parsed, parseErr := time.ParseDuration(timeoutStr); parseErr == nil {
 			circuitTimeout = parsed
 		}
 	}
@@ -1057,27 +1052,23 @@ func (s *EmailService) enqueueEmail(job EmailJob, queueName string) error {
 	return s.redisClient.LPush(ctx, queueName, jobData).Err()
 }
 
-// P0 RACE CONDITION FIX: Atomic dequeue with job locking
 // P0 RACE CONDITION FIX: Atomic dequeue with distributed lock
 func (s *EmailService) dequeueEmailAtomic(queueName string) (*EmailJob, error) {
 	ctx := context.Background()
 	
-	// Lua script para operação atômica RPOP + SETNX
+	// Lua script para operação atômica RPOP + SETNX com TTL em milissegundos
 	script := `
-		local job_data = redis.call('RPOP', KEYS[1])
-		if job_data then
-			local job = cjson.decode(job_data)
-			local lock_key = 'job_processing:' .. job.id
-			if redis.call('SETNX', lock_key, ARGV[1]) == 1 then
-				redis.call('EXPIRE', lock_key, 300)
-				return job_data
-			else
-				-- Job já sendo processado, devolver à fila
-				redis.call('LPUSH', KEYS[1], job_data)
-				return nil
-			end
+		local data = redis.call('RPOP', KEYS[1])
+		if not data then return nil end
+		local job = cjson.decode(data)
+		local lockKey = 'job_processing:' .. job.id
+		if redis.call('SETNX', lockKey, ARGV[1]) == 1 then
+			redis.call('PEXPIRE', lockKey, 300000)
+			return data
+		else
+			redis.call('LPUSH', KEYS[1], data)
+			return nil
 		end
-		return nil
 	`
 	
 	workerID := fmt.Sprintf("worker_%d_%d", time.Now().UnixNano(), rand.Int())
@@ -1416,6 +1407,115 @@ func (s *EmailService) getJobStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, jobData)
 }
 
+// P0 RACE CONDITION FIX: Verificação de status idempotente
+func (s *EmailService) isJobAlreadyProcessed(jobID string) bool {
+	ctx := context.Background()
+	statusKey := fmt.Sprintf("email_job:%s", jobID)
+	existing := s.redisClient.HGet(ctx, statusKey, "status").Val()
+	return existing == "sent" || existing == "processing"
+}
+
+// P0 RACE CONDITION FIX: Sistema de fingerprint para detectar duplicatas
+func (s *EmailService) generateFingerprint(job EmailJob) string {
+	h := sha256.New()
+	for _, to := range job.To {
+		h.Write([]byte(to))
+	}
+	h.Write([]byte(job.Subject))
+	h.Write([]byte(job.Body))
+	h.Write([]byte(job.HTMLBody))
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+func (s *EmailService) isDuplicate(fingerprint string) bool {
+	ctx := context.Background()
+	fingerprintKey := fmt.Sprintf("email_fingerprint:%s", fingerprint)
+	exists := s.redisClient.Exists(ctx, fingerprintKey).Val()
+	return exists > 0
+}
+
+func (s *EmailService) markProcessed(fingerprint string) {
+	ctx := context.Background()
+	fingerprintKey := fmt.Sprintf("email_fingerprint:%s", fingerprint)
+	// Marcar como processado por 24 horas
+	s.redisClient.SetEX(ctx, fingerprintKey, "processed", 24*time.Hour)
+}
+
+// P0 RACE CONDITION FIX: Cleanup automático de locks expirados e jobs órfãos
+func (s *EmailService) startCleanupWorker() {
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute) // Cleanup a cada 5 minutos
+		defer ticker.Stop()
+		
+		for range ticker.C {
+			s.cleanupExpiredLocks()
+			s.cleanupOrphanedJobs()
+		}
+	}()
+}
+
+func (s *EmailService) cleanupExpiredLocks() {
+	ctx := context.Background()
+	
+	// Script Lua para encontrar e remover locks expirados
+	script := `
+		local keys = redis.call('KEYS', 'job_processing:*')
+		local expired = 0
+		for i = 1, #keys do
+			local ttl = redis.call('TTL', keys[i])
+			if ttl == -1 then  -- Lock sem TTL (órfão)
+				redis.call('DEL', keys[i])
+				expired = expired + 1
+			end
+		end
+		return expired
+	`
+	
+	result := s.redisClient.Eval(ctx, script, []string{})
+	if result.Err() == nil {
+		expiredCount := result.Val()
+		if expiredCount.(int64) > 0 {
+			logrus.WithFields(logrus.Fields{
+				"component": "cleanup",
+				"expired_locks": expiredCount,
+			}).Info("Cleaned up expired locks")
+		}
+	}
+}
+
+func (s *EmailService) cleanupOrphanedJobs() {
+	ctx := context.Background()
+	
+	// Script Lua para encontrar jobs órfãos (sem lock correspondente)
+	script := `
+		local statusKeys = redis.call('KEYS', 'email_job:*')
+		local orphaned = 0
+		for i = 1, #statusKeys do
+			local jobId = string.match(statusKeys[i], 'email_job:(.+)')
+			local status = redis.call('HGET', statusKeys[i], 'status')
+			local lockKey = 'job_processing:' .. jobId
+			
+			-- Se status é 'processing' mas não há lock, limpar
+			if status == 'processing' and redis.call('EXISTS', lockKey) == 0 then
+				redis.call('HSET', statusKeys[i], 'status', 'failed', 'message', 'Job orphaned - no processing lock found')
+				orphaned = orphaned + 1
+			end
+		end
+		return orphaned
+	`
+	
+	result := s.redisClient.Eval(ctx, script, []string{})
+	if result.Err() == nil {
+		orphanedCount := result.Val()
+		if orphanedCount.(int64) > 0 {
+			logrus.WithFields(logrus.Fields{
+				"component": "cleanup",
+				"orphaned_jobs": orphanedCount,
+			}).Info("Cleaned up orphaned jobs")
+		}
+	}
+}
+
 func (s *EmailService) healthCheck(c *gin.Context) {
 	// Check Redis connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -1553,6 +1653,9 @@ func main() {
 
 	// Start worker pool
 	service.workerPool.Start(service)
+	
+	// Start cleanup worker para locks expirados e jobs órfãos
+	service.startCleanupWorker()
 
 	// Set Gin mode
 	if os.Getenv("GIN_MODE") == "" {
