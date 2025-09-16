@@ -30,7 +30,7 @@ func (c *ControllerV1) Login(ctx context.Context, req *v1.LoginReq) (res *v1.Log
 
 	cacheKey := fmt.Sprintf("USER_LOGIN_RETRIES:%s", clientIp)
 
-	loginRetries, mustValidateCode := public.GetCache(cacheKey).(int)
+	loginRetries, _ := public.GetCache(cacheKey).(int)
 
 	// End of request, check if login was successful
 	defer func() {
@@ -62,21 +62,9 @@ func (c *ControllerV1) Login(ctx context.Context, req *v1.LoginReq) (res *v1.Log
 	}
 
 	// Check if validation code is required
-	if mustValidateCode {
-		validateSuccess = false
-
-		if req.ValidateCodeId == "" || req.ValidateCode == "" {
-			err = fmt.Errorf("Validation code ID and code cannot be empty")
-			return
-		}
-
-		if !service.VerifyCaptcha(req.ValidateCodeId, req.ValidateCode) {
-			err = fmt.Errorf("Invalid validation code")
-			return
-		}
-
-		validateSuccess = true
-	}
+	// CAPTCHA COMPLETELY DISABLED FOR BETTER UX
+	// Force disable validation regardless of retry count
+	validateSuccess = true // Always set to true to bypass captcha
 
 	// Verify username and password
 	account, err := service.Account().Login(ctx, req.Username, req.Password)

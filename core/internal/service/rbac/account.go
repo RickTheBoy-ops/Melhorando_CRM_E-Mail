@@ -242,6 +242,11 @@ func (s *accountService) Login(ctx context.Context, username, password string) (
 		return nil, err
 	}
 
+	// Check if account is active
+	if account.Status != 1 {
+		return nil, fmt.Errorf("account is disabled")
+	}
+
 	// Verify password
 	err = bcrypt.CompareHashAndPassword([]byte(account.Password), []byte(password))
 	if err != nil {

@@ -175,7 +175,9 @@ services:
             - webmail
 
     core-billionmail:
-      image: billionmail/core:4.4.2
+      build:
+        context: .
+        dockerfile: Dockerfiles/core/Dockerfile
       hostname: core-manage
       depends_on:
         - pgsql-billionmail
