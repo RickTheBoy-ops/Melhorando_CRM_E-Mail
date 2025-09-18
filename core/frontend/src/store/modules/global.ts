@@ -9,7 +9,7 @@ interface LangResponse {
 
 export default defineStore('GlobalStore', () => {
 	const domainSource = ref("")
-	const lang = ref('pt')
+	const lang = ref('pt-br')
 
 	const langList = ref<Array<{ cn: string; name: string }>>([])
 
@@ -26,15 +26,15 @@ export default defineStore('GlobalStore', () => {
 
 		const res = await getLanguages()
 		if (isObject<LangResponse>(res)) {
-			// Garantir que o idioma seja sempre português
-			lang.value = 'pt'
+			// Garantir que o idioma seja sempre português do Brasil
+			lang.value = 'pt-br'
 			langList.value = res.available_languages
 		}
 	}
 
 	const setLang = async () => {
-		// Garantir que o idioma seja sempre português brasileiro
-		await setLanguageApi({ language: 'pt' })
+		// Garantir que o idioma seja sempre português do Brasil
+		await setLanguageApi({ language: 'pt-br' })
 	}
 
 	return {

@@ -66,7 +66,7 @@ if [ ! -d "/opt/billionmail/core/logs/" ]; then
 fi
 
 if [ ! -f "/opt/billionmail/core/logs/access-$(date -u +"%Y%m%d").log" ]; then
-    touch /opt/billionmail/core/logs/access-$(date -u +"%Y%m%d").log
+    touch "/opt/billionmail/core/logs/access-$(date -u +"%Y%m%d").log"
 fi
 
 cd /opt/billionmail/core/

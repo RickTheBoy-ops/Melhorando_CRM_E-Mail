@@ -48,8 +48,8 @@ func (c *ControllerV1) ExportContacts(ctx context.Context, req *v1.ExportContact
 
 		// Get contacts from all groups
 		for _, groupId := range req.GroupIds {
-			contacts, err := contact.GetContactsByGroup(ctx, groupId)
-			if err != nil {
+			contacts, getErr := contact.GetContactsByGroup(ctx, groupId)
+			if getErr != nil {
 				continue
 			}
 			// Filter contacts based on IncludeInactive
@@ -133,13 +133,13 @@ func (c *ControllerV1) ExportContacts(ctx context.Context, req *v1.ExportContact
 			filePath := filepath.Join(tempDir, fileName)
 
 			// Export file
-			fileContent, err := exportContactFile1(filteredContacts, req.Format)
-			if err != nil {
+			fileContent, exportErr := exportContactFile1(filteredContacts, req.Format)
+			if exportErr != nil {
 				continue
 			}
 
 			// Write file
-			if err = gfile.PutBytes(filePath, fileContent); err != nil {
+			if writeErr := gfile.PutBytes(filePath, fileContent); writeErr != nil {
 				continue
 			}
 

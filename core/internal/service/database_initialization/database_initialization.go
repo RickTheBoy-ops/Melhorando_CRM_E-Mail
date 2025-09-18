@@ -26,7 +26,7 @@ func InitDatabase() (err error) {
 			gdb.ConfigNode{
 				// Debug: true,
 				Host:             public.AbsPath(consts.POSTGRESQL_SOCK),
-				User:             "billionmail",
+				User:             "billionmail_user",
 				Pass:             dbPass,
 				Name:             "billionmail",
 				Type:             "pgsql",

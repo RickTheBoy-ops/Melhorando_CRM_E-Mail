@@ -45,6 +45,7 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 	"github.com/gogf/gf/v2/os/gcmd"
+
 	"github.com/gogf/gf/v2/util/gconv"
 )
 
@@ -55,12 +56,19 @@ var (
 		Brief: "start http server",
 		Func: func(ctx context.Context, parser *gcmd.Parser) (err error) {
 			if v := parser.GetOpt("version"); v != nil {
-				fmt.Println(fmt.Sprintf("v%s", g.Cfg().MustGet(ctx, "server.version", "0.1").String()))
+				fmt.Printf("v%s\n", g.Cfg().MustGet(ctx, "server.version", "0.1").String())
 				return nil
 			}
 
 			// Init Database
-			err = database_initialization.InitDatabase()
+			// Try Windows-compatible initialization first
+			err = database_initialization.InitDatabaseWindowsSimple()
+			
+			if err != nil {
+				g.Log().Warning(ctx, "Windows database initialization failed, trying standard initialization: ", err)
+				// Fallback to standard initialization
+				err = database_initialization.InitDatabase()
+			}
 
 			if err != nil {
 				g.Log().Error(ctx, "initialize databases failed ", err)
@@ -68,7 +76,7 @@ var (
 			}
 
 			// Init Redis
-			err = redis_initialization.InitRedis()
+			err = redis_initialization.InitRedisWindowsSimple()
 
 			if err != nil {
 				g.Log().Error(ctx, "initialize redis failed ", err)
@@ -159,10 +167,10 @@ var (
 					if safepath != "" {
 						if r.URL.Path == "/"+safepath {
 							// Set session
-							err := r.Session.Set("safe_path_pass", true)
+							sessionErr := r.Session.Set("safe_path_pass", true)
 
-							if err != nil {
-								g.Log().Error(ctx, "set safe_path_pass failed ", err)
+							if sessionErr != nil {
+								g.Log().Error(ctx, "set safe_path_pass failed ", sessionErr)
 							}
 
 							// r.Response.RedirectTo("/")
@@ -182,7 +190,7 @@ var (
 						if !r.Session.MustGet("safe_path_pass", false).Bool() {
 							if strings.HasPrefix(r.URL.Path, "/api/") {
 								// Check if the request is an API token request
-								if claims, err := rbac2.JWT().ParseTokenByRequest(r); err == nil && claims != nil && claims.ApiToken {
+								if claims, parseErr := rbac2.JWT().ParseTokenByRequest(r); parseErr == nil && claims != nil && claims.ApiToken {
 									return
 								}
 								resp := public.CodeMap[404]
@@ -262,6 +270,8 @@ var (
 				)
 			})
 
+
+
 			// Add PHP-FPM middleware
 			s.BindMiddleware("/roundcube/*any", func(r *ghttp.Request) {
 				if r.Method == "POST" && strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
@@ -333,9 +343,8 @@ var (
 				}
 
 				var password string
-				err = public.OptionsMgrInstance.GetOption(ctx, "rspamd_worker_controller_password", &password)
-
-				if err == nil {
+				passwordErr := public.OptionsMgrInstance.GetOption(ctx, "rspamd_worker_controller_password", &password)
+				if passwordErr == nil {
 					r.Header.Set("Password", password)
 				}
 
@@ -353,24 +362,19 @@ var (
 				maillog_stat.CampaignEventHandler(r, r.Get("any").String())
 			})
 
-			// Add static file handler
-			s.BindHandler("/*any", func(r *ghttp.Request) {
-				if strings.HasPrefix(r.URL.Path, "/api/") {
-					r.Response.WriteHeader(404)
-					return
-				}
+			// Configure static file serving
+			s.SetServerRoot("public/dist")
+			
+			// Add explicit static file serving for /static/ path
+			s.AddStaticPath("/static", "./public/dist/static")
 
-				if r.GetCtxVar("JustVisitedSafePath", false).Bool() {
-					r.Response.RedirectTo("/")
-					return
+			// SPA fallback handler - serve index.html for routes that don't match files
+			s.BindHandler("/*", func(r *ghttp.Request) {
+				// Only serve index.html if no file was found
+				if r.Response.Status == 404 {
+					r.Response.ClearBuffer()
+					r.Response.ServeFile("public/dist/index.html")
 				}
-
-				if safepath != "" && !r.Session.MustGet("safe_path_pass", false).Bool() {
-					r.Response.WriteHeader(404)
-					return
-				}
-
-				r.Response.ServeFile("public/dist/index.html")
 			})
 
 			// Generate self-signed certificate if not exists

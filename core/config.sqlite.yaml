@@ -1,0 +1,19 @@
+server:
+  address: ":8080"
+  openapiPath: "/api.json"
+  swaggerPath: "/swagger"
+
+logger:
+  level: "all"
+  stdout: true
+  file: "logs/server.log"
+
+database:
+  default:
+    link: "sqlite:billionmail.db"
+    debug: true
+
+redis:
+  default:
+    address: "localhost:6379"
+    db: 0

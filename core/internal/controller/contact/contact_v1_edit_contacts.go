@@ -28,9 +28,9 @@ func (c *ControllerV1) EditContacts(ctx context.Context, req *v1.EditContactsReq
 		attribsStr = strings.ReplaceAll(attribsStr, "\"\"", "\"")
 
 		var rawAttribs map[string]interface{}
-		if err := json.Unmarshal([]byte(attribsStr), &rawAttribs); err != nil {
+		if unmarshalErr := json.Unmarshal([]byte(attribsStr), &rawAttribs); unmarshalErr != nil {
 			res.Code = 400
-			res.SetError(gerror.New(public.LangCtx(ctx, "Invalid attributes format:{}", err.Error())))
+			res.SetError(gerror.New(public.LangCtx(ctx, "Invalid attributes format:{}", unmarshalErr.Error())))
 			return res, nil
 		}
 
@@ -53,7 +53,7 @@ func (c *ControllerV1) EditContacts(ctx context.Context, req *v1.EditContactsReq
 				attribs[k] = ""
 			default:
 				// Other types try to convert to JSON string
-				if bytes, err := json.Marshal(val); err == nil {
+				if bytes, marshalErr := json.Marshal(val); marshalErr == nil {
 					attribs[k] = string(bytes)
 				} else {
 					attribs[k] = fmt.Sprintf("%v", val)
@@ -76,7 +76,7 @@ func (c *ControllerV1) EditContacts(ctx context.Context, req *v1.EditContactsReq
 			Attribs map[string]string `json:"attribs"`
 			Status  int               `json:"status"`
 		}
-		err := g.DB().Model("bm_contacts").
+		scanErr := g.DB().Model("bm_contacts").
 			Where("email", req.Emails).
 			Order("id DESC").
 			Limit(1).
@@ -86,7 +86,7 @@ func (c *ControllerV1) EditContacts(ctx context.Context, req *v1.EditContactsReq
 		if attribs != nil {
 			// If new attributes are provided, use them directly (without merging)
 			finalAttribs = attribs
-		} else if err == nil && existingContact.Attribs != nil {
+		} else if scanErr == nil && existingContact.Attribs != nil {
 			// If no new attributes are provided, use existing attributes
 			finalAttribs = existingContact.Attribs
 		} else {
@@ -97,10 +97,10 @@ func (c *ControllerV1) EditContacts(ctx context.Context, req *v1.EditContactsReq
 		// 3. If group relations need to be updatedrelations need to be updated
 		if len(req.GroupIds) > 0 {
 			// Delete old contact recordsd contact records
-			_, err := g.DB().Model("bm_contacts").
+			_, deleteErr := g.DB().Model("bm_contacts").
 				Where("email", req.Emails).
 				Delete()
-			if err != nil {
+			if deleteErr != nil {
 				return gerror.New(public.LangCtx(ctx, "Failed to delete old contact records"))
 			}
 
@@ -120,10 +120,10 @@ func (c *ControllerV1) EditContacts(ctx context.Context, req *v1.EditContactsReq
 			}
 
 			if len(data) > 0 {
-				_, err := g.DB().Model("bm_contacts").
+				_, insertErr := g.DB().Model("bm_contacts").
 					Data(data).
 					Insert()
-				if err != nil {
+				if insertErr != nil {
 					return gerror.New(public.LangCtx(ctx, "Failed to create new contact records"))
 				}
 			}

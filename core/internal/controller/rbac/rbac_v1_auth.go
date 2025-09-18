@@ -17,6 +17,8 @@ import (
 func (c *ControllerV1) Login(ctx context.Context, req *v1.LoginReq) (res *v1.LoginRes, err error) {
 	res = &v1.LoginRes{}
 
+	g.Log().Info(ctx, "Login attempt for username:", req.Username)
+
 	maxRetries := 5
 	blockTime := 300
 
@@ -69,9 +71,12 @@ func (c *ControllerV1) Login(ctx context.Context, req *v1.LoginReq) (res *v1.Log
 	// Verify username and password
 	account, err := service.Account().Login(ctx, req.Username, req.Password)
 	if err != nil {
+		g.Log().Error(ctx, "Login failed for username:", req.Username, "error:", err)
 		err = fmt.Errorf("Invalid username or password")
 		return
 	}
+
+	g.Log().Info(ctx, "Login successful for username:", req.Username, "account ID:", account.AccountId)
 
 	// Get account roles
 	roles, err := service.Account().GetAccountRoles(ctx, account.AccountId)
@@ -116,6 +121,15 @@ func (c *ControllerV1) Login(ctx context.Context, req *v1.LoginReq) (res *v1.Log
 	res.Data.AccountInfo.Lang = account.Language
 
 	loginSuccessFlag = true
+
+	g.Log().Info(ctx, "Login response prepared:", 
+		"Success:", res.Success, 
+		"Code:", res.Code, 
+		"Msg:", res.Msg,
+		"Token length:", len(token),
+		"RefreshToken length:", len(refreshToken),
+		"Account ID:", res.Data.AccountInfo.Id,
+		"Username:", res.Data.AccountInfo.Username)
 
 	_ = public.WriteLog(ctx, public.LogParams{
 		Type: consts.LOGTYPE.Login,

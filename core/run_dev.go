@@ -299,7 +299,7 @@ func AbsPath(p string) string {
 	return p
 }
 
-func main() {
+func runDev() {
 	ctx := context.Background()
 	logger := log.New(os.Stdout, "[Main] ", log.LstdFlags)
 
@@ -332,4 +332,8 @@ func main() {
 
 	// Keep the main goroutine running
 	select {}
+}
+
+func runDevMain() {
+	runDev()
 }

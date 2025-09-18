@@ -1,0 +1,396 @@
+{
+	"common": {
+		"all": {
+			"text": "Todos",
+			"domain": "Todos os Domínios"
+		},
+		"time": {
+			"today": "Hoje",
+			"yesterday": "Ontem",
+			"last7days": "Últimos 7 Dias",
+			"custom": "Personalizado"
+		},
+		"unit": {
+			"days": "Dias",
+			"hours": "Horas",
+			"minutes": "Minutos",
+			"seconds": "Segundos"
+		},
+		"columns": {
+			"actions": "Ações"
+		},
+		"actions": {
+			"view": "Visualizar",
+			"edit": "Editar",
+			"delete": "Excluir",
+			"add": "Adicionar",
+			"create": "Criar",
+			"update": "Atualizar",
+			"save": "Salvar",
+			"cancel": "Cancelar",
+			"confirm": "Confirmar",
+			"back": "Voltar",
+			"search": "Pesquisar",
+			"reset": "Redefinir",
+			"more": "Mais",
+			"refresh": "Atualizar",
+			"copy": "Copiar",
+			"restart": "Reiniciar",
+			"import": "Importar",
+			"export": "Exportar",
+			"download": "Baixar",
+			"upload": "Enviar",
+			"apply": "Aplicar",
+			"test": "Testar",
+			"rename": "Renomear",
+			"preview": "Visualizar",
+			"modify": "Modificar",
+			"config": "Configurar",
+			"help": "Ajuda",
+			"settings": "Configurações",
+			"clear": "Limpar"
+		},
+		"useCopy": {
+			"noText": "Nenhum texto para copiar",
+			"success": "Cópia bem-sucedida",
+			"failed": "Falha na cópia"
+		}
+	},
+	"components": {
+		"tableHelp": {
+			"text1": "Envie {issues} para perguntas ou sugestões, e dê uma {star} no Github para apoiar o projeto.",
+			"text2": "Valorizamos muito sua participação ativa. Obrigado."
+		},
+		"upload": {
+			"error": {
+				"fileSizeExceeded": "O tamanho do arquivo [{fileName}] não pode exceder {maxSize}MB",
+				"uploadFailed": "Falha no upload do arquivo. Por favor, tente novamente"
+			},
+			"prompt": {
+				"dragText": "Clique ou arraste arquivos para esta área",
+				"supportedFiles": "Apenas arquivos {suffix} são suportados"
+			}
+		}
+	},
+	"layout": {
+		"header": {
+			"submit": "Enviar uma Solicitação"
+		},
+		"menu": {
+			"overview": "Visão Geral",
+			"market": "Marketing de Email",
+			"task": "Tarefas",
+			"template": "Modelos",
+			"sendApi": "API de Envio",
+			"contacts": "Contatos",
+			"subscribers": "Assinantes",
+			"group": "Grupos",
+			"domain": "Domínio",
+			"mailboxes": "Caixas de Email",
+			"settings": "Configurações",
+			"common": "Configurações Comuns",
+			"bcc": "BCC",
+			"forward": "Encaminhamento de Email",
+			"logout": "Sair",
+			"service": "Serviço",
+			"logs": "Registros",
+			"operation_logs": "Registros de Operação",
+			"error_logs": "Registros de Erro"
+		}
+	},
+	"login": {
+		"title": "Login",
+		"username": "Nome de Usuário",
+		"password": "Senha",
+		"login": "Entrar",
+		"rememberMe": "Lembrar-me",
+		"forgotPassword": "Esqueceu a senha?",
+		"error": {
+			"usernameRequired": "Por favor, insira o nome de usuário",
+			"passwordRequired": "Por favor, insira a senha"
+		}
+	},
+	"overview": {
+		"title": "Visão Geral",
+		"stats": {
+			"total": "Total",
+			"sent": "Enviados",
+			"delivered": "Entregues",
+			"opened": "Abertos",
+			"clicked": "Clicados",
+			"bounced": "Devolvidos",
+			"complained": "Reclamados",
+			"unsubscribed": "Cancelados"
+		},
+		"chart": {
+			"title": "Estatísticas de Envio",
+			"sent": "Enviados",
+			"delivered": "Entregues",
+			"opened": "Abertos",
+			"clicked": "Clicados"
+		},
+		"queue": {
+			"title": "Fila de Envio",
+			"empty": "Nenhum email na fila",
+			"id": "ID",
+			"sender": "Remetente",
+			"recipient": "Destinatário",
+			"size": "Tamanho",
+			"time": "Tempo",
+			"status": "Status",
+			"actions": {
+				"resend": "Reenviar",
+				"delete": "Excluir",
+				"view": "Visualizar",
+				"clear": "Limpar Fila"
+			}
+		},
+		"sendQueue": {
+			"title": "Fila de Envio",
+			"breadcrumb": "Fila de Envio",
+			"buttons": {
+				"refresh": "Atualizar Fila",
+				"quickClear": "Limpeza Rápida",
+				"paramConfig": "Configuração de Parâmetros da Fila",
+				"resend": "Reenviar",
+				"batchDelete": "Exclusão em Lote",
+				"batchResend": "Reenvio em Lote"
+			},
+			"table": {
+				"columns": {
+					"sender": "Remetente",
+					"recipient": "Destinatário",
+					"arrivalTime": "Hora de Chegada",
+					"messageSize": "Tamanho da Mensagem",
+					"delayReason": "Motivo do Atraso",
+					"action": "Ação"
+				}
+			},
+			"confirm": {
+				"quickClear": {
+					"title": "Limpeza Rápida",
+					"content": "Tem certeza que deseja limpar rapidamente a fila?"
+				},
+				"resend": {
+					"title": "Reenviar",
+					"content": "Tem certeza que deseja reenviar a fila?"
+				},
+				"delete": {
+					"title": "Excluir Fila",
+					"content": "Tem certeza que deseja excluir esta fila?"
+				},
+				"batchDelete": {
+					"title": "Exclusão em Lote",
+					"content": "Tem certeza que deseja excluir {count} filas de envio?"
+				},
+				"batchResend": {
+					"title": "Reenvio em Lote",
+					"content": "Tem certeza que deseja reenviar {count} filas de envio?"
+				}
+			},
+			"paramConfig": {
+				"title": "Configuração de Parâmetros da Fila",
+				"fields": {
+					"bounceQueueLifetime": "Tempo de Vida da Fila de Devolução",
+					"maximalQueueLifetime": "Tempo de Vida Máximo da Fila",
+					"minimalBackoffTime": "Tempo Mínimo de Recuo",
+					"maximalBackoffTime": "Tempo Máximo de Recuo",
+					"queueRunDelay": "Atraso na Execução da Fila",
+					"triggerTimeout": "Tempo Limite de Gatilho"
+				}
+			},
+			"queueLogs": {
+				"title": "Logs da Fila"
+			}
+		}
+	},
+	"market": {
+		"task": {
+			"title": "Tarefas de Email",
+			"create": "Criar Tarefa",
+			"edit": "Editar Tarefa",
+			"view": "Visualizar Tarefa",
+			"list": {
+				"id": "ID",
+				"name": "Nome",
+				"status": "Status",
+				"progress": "Progresso",
+				"sent": "Enviados",
+				"total": "Total",
+				"createTime": "Hora de Criação",
+				"actions": "Ações"
+			},
+			"form": {
+				"name": "Nome da Tarefa",
+				"template": "Modelo",
+				"group": "Grupo",
+				"sender": "Remetente",
+				"subject": "Assunto",
+				"content": "Conteúdo",
+				"schedule": "Agendar",
+				"now": "Agora",
+				"later": "Mais tarde",
+				"date": "Data",
+				"time": "Hora"
+			}
+		},
+		"template": {
+			"title": "Modelos de Email",
+			"create": "Criar Modelo",
+			"edit": "Editar Modelo",
+			"view": "Visualizar Modelo",
+			"list": {
+				"id": "ID",
+				"name": "Nome",
+				"createTime": "Hora de Criação",
+				"actions": "Ações"
+			},
+			"form": {
+				"name": "Nome do Modelo",
+				"content": "Conteúdo"
+			}
+		}
+	},
+	"contacts": {
+		"title": "Contatos",
+		"create": "Criar Contato",
+		"edit": "Editar Contato",
+		"view": "Visualizar Contato",
+		"import": "Importar Contatos",
+		"export": "Exportar Contatos",
+		"list": {
+			"id": "ID",
+			"email": "Email",
+			"name": "Nome",
+			"group": "Grupo",
+			"createTime": "Hora de Criação",
+			"actions": "Ações"
+		},
+		"form": {
+			"email": "Email",
+			"name": "Nome",
+			"group": "Grupo"
+		},
+		"suspend": {
+			"buttons": {
+				"scanInvalidDomains": "Verificar Domínios Inválidos",
+				"scanLogs": "Registros de Verificação",
+				"autoBlockFailedEmails": "Bloquear Automaticamente Emails com Falha"
+			},
+			"search": {
+				"emailPlaceholder": "Pesquisar email"
+			}
+		},
+		"group": {
+			"title": "Grupos",
+			"create": "Criar Grupo",
+			"edit": "Editar Grupo",
+			"view": "Visualizar Grupo",
+			"list": {
+				"id": "ID",
+				"name": "Nome",
+				"count": "Quantidade",
+				"createTime": "Hora de Criação",
+				"actions": "Ações"
+			},
+			"form": {
+				"name": "Nome do Grupo",
+				"description": "Descrição"
+			}
+		}
+	},
+	"settings": {
+		"title": "Configurações",
+		"common": {
+			"title": "Configurações Comuns",
+			"language": "Idioma",
+			"timezone": "Fuso Horário",
+			"dateFormat": "Formato de Data",
+			"timeFormat": "Formato de Hora"
+		},
+		"smtp": {
+			"title": "Configurações SMTP",
+			"server": "Servidor SMTP",
+			"port": "Porta",
+			"username": "Nome de Usuário",
+			"password": "Senha",
+			"encryption": "Criptografia",
+			"fromName": "Nome do Remetente",
+			"fromEmail": "Email do Remetente"
+		},
+		"domain": {
+			"title": "Configurações de Domínio",
+			"domain": "Domínio",
+			"dkim": "DKIM",
+			"spf": "SPF",
+			"dmarc": "DMARC",
+			"verify": "Verificar"
+		},
+		"bcc": {
+			"title": "Configurações de BCC",
+			"enable": "Habilitar BCC",
+			"email": "Email BCC"
+		},
+		"forward": {
+			"title": "Configurações de Encaminhamento",
+			"enable": "Habilitar Encaminhamento",
+			"email": "Email de Encaminhamento"
+		}
+	},
+	"error": {
+		"notFound": "Página não encontrada",
+		"serverError": "Erro do servidor",
+		"unauthorized": "Não autorizado",
+		"forbidden": "Proibido",
+		"badRequest": "Requisição inválida"
+	},
+	"user": {
+		"api": {
+			"loading": {
+				"logout": "Saindo..."
+			}
+		}
+	},
+	"template": {
+		"template": "Modelo",
+		"createTpl": {
+			"sourceUrl": "URL de Origem",
+			"useAiTools": "Use ferramentas de IA para ajudar a gerar automaticamente conteúdo de email e melhorar sua eficiência de trabalho.",
+			"create": "Criar",
+			"notices": {
+				"domainListEmpty": "Por favor, crie o primeiro domínio para o BillionMail enviar emails",
+				"aiConfigurationInvalid": "O modelo de IA não está configurado atualmente, você não pode usar o modelo de IA para criar modelos de email",
+				"invalidBrandDomain": "Por favor, crie informações de marca para o domínio primeiro"
+			},
+			"buttons": {
+				"createNow": "Criar Agora",
+				"configureNow": "Configurar Agora"
+			}
+		},
+		"ai": {
+			"title": "Modelo de IA",
+			"welcomeMessage": "Você pode dizer: Crie um email de boas-vindas para usuários que estão se juntando ao {domain}",
+			"greeting": "Vamos criar um belo modelo de email.",
+			"brandName": "BillionMail",
+			"buttons": {
+				"regenerate": "Regenerar",
+				"info": "Informação",
+				"view": "Visualizar",
+				"edit": "Editar",
+				"copy": "Copiar",
+				"copied": "Copiado",
+				"apply": "Aplicar"
+			},
+			"spintax": {
+				"instruction": "Use a sintaxe Spintax, com o requisito de incluir {count} variações"
+			},
+			"tips": {
+				"saveShortcut": "Use [Ctrl + s] para salvar suas alterações"
+			},
+			"loading": {
+				"message": "Carregando... Por favor, aguarde"
+			},
+			"send": "Enviar"
+		}
+	}
+}

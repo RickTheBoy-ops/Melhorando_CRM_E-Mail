@@ -16,11 +16,11 @@ func (c *ControllerV1) CreateGroup(ctx context.Context, req *v1.CreateGroupReq) 
 	switch req.CreateType {
 	case 1, 2: // create new group
 		// check if group name exists
-		exists, err := contact.CheckGroupNameExists(ctx, req.Name)
-		if err != nil {
+		exists, checkErr := contact.CheckGroupNameExists(ctx, req.Name)
+		if checkErr != nil {
 			res.Code = 500
-			res.SetError(gerror.New(public.LangCtx(ctx, "Failed to check group name existence {}", err.Error())))
-			return res, err
+			res.SetError(gerror.New(public.LangCtx(ctx, "Failed to check group name existence {}", checkErr.Error())))
+			return res, checkErr
 		}
 		if exists {
 			res.Code = 400

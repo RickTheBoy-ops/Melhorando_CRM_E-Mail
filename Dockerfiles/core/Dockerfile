@@ -18,9 +18,9 @@ COPY core/template /opt/billionmail/core/template
 
 # Copy file
 # COPY repositories /etc/apk/repositories
-COPY stop-supervisor.sh /stop-supervisor.sh
-COPY core.sh /core.sh
-COPY restart_fail2ban.sh /restart_fail2ban.sh
+COPY Dockerfiles/core/stop-supervisor.sh /stop-supervisor.sh
+COPY Dockerfiles/core/core.sh /core.sh
+COPY Dockerfiles/core/restart_fail2ban.sh /restart_fail2ban.sh
 
 # Install dependencies (using Alpine's apk package manager)
 RUN apk add --no-cache \
@@ -40,8 +40,8 @@ RUN apk add --no-cache \
 
 # Copy file
 
-COPY supervisord.conf /etc/supervisor/supervisord.conf
-COPY fail2ban.conf /etc/fail2ban/fail2ban.conf
+COPY Dockerfiles/core/supervisord.conf /etc/supervisor/supervisord.conf
+COPY Dockerfiles/core/fail2ban.conf /etc/fail2ban/fail2ban.conf
 
 
 ENTRYPOINT ["/core.sh"]

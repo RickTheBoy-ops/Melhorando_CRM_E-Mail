@@ -1,36 +1,6 @@
 {
   "languages": [
     {
-      "name": "en",
-      "google": "en",
-      "title": "English",
-      "cn": "English"
-    },
-    {
-      "name": "zh",
-      "google": "zh-cn",
-      "title": "简体中文",
-      "cn": "简体中文"
-    },
-    {
-      "name": "ja",
-      "google": "ja",
-      "title": "日本語",
-      "cn": "日本語"
-    },
-    {
-      "name": "de",
-      "google": "de",
-      "title": "Deutsch",
-      "cn": "German"
-    },
-    {
-      "name": "pt",
-      "google": "pt",
-      "title": "Português",
-      "cn": "Português"
-    },
-    {
       "name": "pt-br",
       "google": "pt-br",
       "title": "Português (Brasil)",

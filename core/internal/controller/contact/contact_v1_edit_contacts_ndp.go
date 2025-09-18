@@ -47,7 +47,7 @@ func (c *ControllerV1) EditContactsNDP(ctx context.Context, req *v1.EditContacts
 			case nil:
 				attribs[k] = ""
 			default:
-				if bytes, err := json.Marshal(val); err == nil {
+				if bytes, marshalErr := json.Marshal(val); marshalErr == nil {
 					attribs[k] = string(bytes)
 				} else {
 					attribs[k] = fmt.Sprintf("%v", val)

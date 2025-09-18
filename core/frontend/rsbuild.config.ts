@@ -13,6 +13,15 @@ import { getEnv, getServer } from './build/utils'
 
 const server = getServer()
 export default defineConfig({
+	html: {
+		template: './index.html',
+		title: 'My App',
+		meta: {
+			viewport: 'width=device-width, initial-scale=1',
+			description: 'A Vue application built with Rsbuild',
+		},
+		mountId: 'app',
+	},
 	plugins: [
 		pluginBabel({
 			include: /\.(?:jsx|tsx)$/,
@@ -31,6 +40,9 @@ export default defineConfig({
 	],
 	tools: {
 		rspack: {
+			output: {
+				publicPath: './',
+			},
 			plugins: [
 				UnoCSSRspackPlugin({
 					configFile: './uno.config.ts',
@@ -51,9 +63,6 @@ export default defineConfig({
 				}),
 			],
 		},
-	},
-	html: {
-		template: './index.html',
 	},
 	resolve: {
 		extensions: ['.ts', '.tsx', '.mjs', '.js', '.jsx', '.json', '.d.ts'],

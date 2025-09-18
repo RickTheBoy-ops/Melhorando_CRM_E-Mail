@@ -16,8 +16,8 @@ func (c *ControllerV1) SetLanguage(ctx context.Context, req *v1.SetLanguageReq) 
 
 	res = &v1.SetLanguageRes{}
 
-	// Forçar o idioma para português brasileiro, independentemente do que foi solicitado
-	lang := "pt"
+	// Forçar o idioma para português do Brasil, independentemente do que foi solicitado
+	lang := "pt-br"
 
 	languageList := public.GetLanguageList()
 	isValidLanguage := false

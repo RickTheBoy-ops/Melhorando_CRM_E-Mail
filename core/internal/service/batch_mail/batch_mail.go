@@ -593,11 +593,11 @@ func CreateTaskWithRecipients(ctx context.Context, req *v1.CreateTaskReq, addTyp
 		}
 
 		// update recipient count
-		actualCount, err := GetActualRecipientCount(ctx, taskId)
-		if err == nil && actualCount > 0 {
-			err = UpdateRecipientCount(ctx, taskId, actualCount)
-			if err != nil {
-				return gerror.New(public.LangCtx(ctx, "Failed to update recipient count for task {}: {}", taskId, err.Error()))
+		actualCount, countErr := GetActualRecipientCount(ctx, taskId)
+		if countErr == nil && actualCount > 0 {
+			updateErr := UpdateRecipientCount(ctx, taskId, actualCount)
+			if updateErr != nil {
+				return gerror.New(public.LangCtx(ctx, "Failed to update recipient count for task {}: {}", taskId, updateErr.Error()))
 			}
 		}
 
@@ -773,8 +773,6 @@ func UpdateTaskJoinMailstat(ctx context.Context) {
 			g.Log().Debugf(ctx, "UpdateTaskJoinMailstat: successfully updated stats for task %d.", task.Id)
 		}
 	}
-
-	return
 }
 
 // getSingleTaskStats Obtain the statistical data for a single task

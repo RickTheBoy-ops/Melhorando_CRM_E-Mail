@@ -97,12 +97,12 @@ func (p *WorkerPool) processMail(ctx context.Context, log ApiMailLog) {
 	// Get data from cache, if not exist, fetch from database
 	apiTemplate, ok := p.cache.ApiTemplates[log.ApiId]
 	if !ok {
-		err := g.DB().Model("api_templates").
+		apiErr := g.DB().Model("api_templates").
 			Where("id", log.ApiId).
 			Ctx(ctx).
 			Scan(&apiTemplate)
-		if err != nil {
-			updateLogStatus(ctx, log.Id, StatusFailed, fmt.Sprintf("Failed to get API template: %v", err))
+		if apiErr != nil {
+			updateLogStatus(ctx, log.Id, StatusFailed, fmt.Sprintf("Failed to get API template: %v", apiErr))
 			return
 		}
 		p.cache.ApiTemplates[log.ApiId] = apiTemplate
@@ -110,12 +110,12 @@ func (p *WorkerPool) processMail(ctx context.Context, log ApiMailLog) {
 
 	emailTemplate, ok := p.cache.EmailTemplates[apiTemplate.TemplateId]
 	if !ok {
-		err := g.DB().Model("email_templates").
+		templateErr := g.DB().Model("email_templates").
 			Where("id", apiTemplate.TemplateId).
 			Ctx(ctx).
 			Scan(&emailTemplate)
-		if err != nil {
-			updateLogStatus(ctx, log.Id, StatusFailed, fmt.Sprintf("Failed to get email template: %v", err))
+		if templateErr != nil {
+			updateLogStatus(ctx, log.Id, StatusFailed, fmt.Sprintf("Failed to get email template: %v", templateErr))
 			return
 		}
 		p.cache.EmailTemplates[apiTemplate.TemplateId] = emailTemplate
@@ -123,12 +123,12 @@ func (p *WorkerPool) processMail(ctx context.Context, log ApiMailLog) {
 
 	contact, ok := p.cache.Contacts[log.Recipient]
 	if !ok {
-		err := g.DB().Model("bm_contacts").
+		contactErr := g.DB().Model("bm_contacts").
 			Where("email", log.Recipient).
 			Ctx(ctx).
 			Scan(&contact)
-		if err != nil {
-			updateLogStatus(ctx, log.Id, StatusFailed, fmt.Sprintf("Failed to get contact info: %v", err))
+		if contactErr != nil {
+			updateLogStatus(ctx, log.Id, StatusFailed, fmt.Sprintf("Failed to get contact info: %v", contactErr))
 			return
 		}
 		p.cache.Contacts[log.Recipient] = contact
@@ -138,9 +138,9 @@ func (p *WorkerPool) processMail(ctx context.Context, log ApiMailLog) {
 	content, subject := processMailContentAndSubject(ctx, emailTemplate.Content, apiTemplate.Subject, &apiTemplate, contact, log)
 
 	// Send email
-	err := sendApiMail(ctx, &apiTemplate, subject, content, log)
-	if err != nil {
-		updateLogStatus(ctx, log.Id, StatusFailed, fmt.Sprintf("Failed to send email: %v", err))
+	sendErr := sendApiMail(ctx, &apiTemplate, subject, content, log)
+	if sendErr != nil {
+		updateLogStatus(ctx, log.Id, StatusFailed, fmt.Sprintf("Failed to send email: %v", sendErr))
 		return
 	}
 

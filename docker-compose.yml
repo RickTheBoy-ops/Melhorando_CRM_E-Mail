@@ -196,6 +196,8 @@ services:
         - ./logs:/opt/billionmail/logs
         - ./logs/core:/opt/billionmail/core/logs
         - ./core-data:/opt/billionmail/core/data
+        - ./core/public/dist:/app/public/dist
+        - ./core/manifest/config:/opt/billionmail/core/config
         - /var/run/docker.sock:/var/run/docker.sock:ro
       environment:
         - TZ=${TZ}
@@ -205,8 +207,8 @@ services:
         - NET_ADMIN
         - NET_RAW
       ports:
-        - "${HTTP_PORT:-80}:${HTTP_PORT:-80}"
-        - "${HTTPS_PORT:-443}:${HTTPS_PORT:-443}"
+      - "${HTTP_PORT:-8080}:8080"
+      - "${HTTPS_PORT:-8443}:8443"
       restart: always
       networks:
         billionmail-network:

@@ -1,26 +1,20 @@
 import { createI18n } from 'vue-i18n'
-import en from './lang/en.json'
-import zh from './lang/zh.json'
-import ja from './lang/ja.json'
-import pt from './lang/pt.json'
+import ptbr from './lang/pt-br.json'
 
 const i18n = createI18n({
 	legacy: false,
 	globalInjection: true,
-	locale: 'pt',
-	fallbackLocale: 'pt',
+	locale: 'pt-br',
+	fallbackLocale: 'pt-br',
 	messages: {
-		en,
-		zh,
-		ja,
-		pt,
+		'pt-br': ptbr,
 	},
 })
 
-// Método para garantir que o idioma seja sempre português
+// Método para garantir que o idioma seja sempre português do Brasil
 export const setLanguage = () => {
-	// Garantir que o idioma seja sempre português
-	i18n.global.locale.value = 'pt'
+	// Garantir que o idioma seja sempre português do Brasil
+	i18n.global.locale.value = 'pt-br'
 }
 
 export default i18n

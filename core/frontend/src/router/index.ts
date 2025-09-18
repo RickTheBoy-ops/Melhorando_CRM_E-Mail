@@ -16,18 +16,18 @@ router.beforeEach(async (to, from, next) => {
 	const globalStore = useGlobalStore()
 
 	// Set the language
-	try {
-		await globalStore.getLang()
-		// Garantir que o idioma seja sempre português
-		if (globalStore.lang !== 'pt') {
-			globalStore.lang = 'pt'
+		try {
+			await globalStore.getLang()
+			// Garantir que o idioma seja sempre português do Brasil
+			if (globalStore.lang !== 'pt-br') {
+				globalStore.lang = 'pt-br'
+			}
+			setLanguage()
+		} catch {
+			// Em caso de erro, definir o idioma como português do Brasil
+			globalStore.lang = 'pt-br'
+			setLanguage()
 		}
-		setLanguage()
-	} catch {
-		// Em caso de erro, definir o idioma como português
-		globalStore.lang = 'pt'
-		setLanguage()
-	}
 
 	// Check if the visited route exists in the registered routes
 	const routeExists = routes.some(route => route.path === to.path)

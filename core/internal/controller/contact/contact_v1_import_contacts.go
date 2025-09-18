@@ -190,9 +190,9 @@ func parseEmailContent(ctx context.Context, content string, importType int) []*e
 
 	// If it is a CSV format and the import type is file upload
 	if isCSVFormat(lines[0]) && importType == ImportTypeFile {
-		contacts, err := parseCSVContent(ctx, content)
-		if err != nil {
-			g.Log().Error(ctx, "Failed to parse CSV content: %v", err)
+		contacts, csvErr := parseCSVContent(ctx, content)
+		if csvErr != nil {
+			g.Log().Error(ctx, "Failed to parse CSV content: %v", csvErr)
 			return nil
 		}
 		return contacts
